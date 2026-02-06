@@ -1,6 +1,6 @@
                                                   ⚠️​⚠️​⚠️​ PROGRAMACION 2⚠️​⚠️​⚠️​
     
-<<<<<<< HEAD
+
 Hola, soy Pablo campos estduiante de ingenieria en computacion, actualmente estoy cursando el 4to trimestre de mi 
 carrera con el objetivo de obtener un manejo decente del lenguaje de programacion c++ y obetener conocimientos basicos de lenguajes como HTML,CSS y JavaScript.
 =======
