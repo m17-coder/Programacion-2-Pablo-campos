@@ -14,6 +14,6 @@ int main() {
     cout << "Valor apuntado por ptr: " << *ptr << endl;    /* Imprime el valor al que apunta 'ptr',algo parecido
     a acceder de una cajita a su contenido */
 
-    cout << *(&ptr) << endl; // Imprime el valor del puntero ptr accediendo a su dirección
+    cout <</ Imprime el valor del puntero ptr accediendo a su dirección
     return 0;
 }

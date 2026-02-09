@@ -61,7 +61,7 @@ int* crearArreglo(int tamanio) {
     int* nuevoArreglo = new int[tamanio];
     return nuevoArreglo;
 }
-// Función para llenar el arreglo con valores del usuario
+
 void llenarArreglo(int* arreglo, int tamanio) {
     if(arreglo == nullptr) {
         cout << "Error: Arreglo no creado." << endl;
@@ -106,12 +106,21 @@ float calcularPromedio(int* arreglo, int tamanio) {
         cout << "Error: Arreglo no creado o vacío." << endl;
         return 0.0f; // Retornar un valor por defecto
     }
+    float validar;
+    for(int i=0; i<tamanio; i++){
+        float validar = arreglo[i];
+        if(validar < 0){
+            cout<<"NO se puede calcular promedio con datos negativos"<<endl;
+            break;
+        }
+
     int suma = 0;
     for (int i = 0; i < tamanio; ++i) {
-        suma += arreglo[i];
+    suma += arreglo[i];
     }
     float promedio = suma/tamanio;
     return promedio;
+}
 }
 
 // Función para liberar la memoria del arreglo
