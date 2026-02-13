@@ -84,6 +84,18 @@ void crearEscuela(Escuela& escuela, int cantEst, int cantMat) {
     // - Validar que cantEst y cantMat sean positivos
     // - Crear arreglos dinamicos con new
     // - Asignar punteros y cantidades en la escuela
+    if (cantEst > 0 && cantMat > 0) {
+        escuela.estudiantes = new Estudiante[cantEst];
+        escuela.materias = new Materia[cantMat];
+        escuela.cantidadEstudiantes = cantEst;
+        escuela.cantidadMaterias = cantMat;
+    } else {
+        cout << "Error: La cantidad de estudiantes o materias debe ser mayor a 0." << endl;
+        escuela.estudiantes = nullptr;
+        escuela.materias = nullptr;
+        escuela.cantidadEstudiantes = 0;
+        escuela.cantidadMaterias = 0;
+    }
 }
 
 // Llena la lista de estudiantes
@@ -93,6 +105,21 @@ void llenarEstudiantes(Escuela& escuela) {
     // - Pedir id, nombre y promedio
     // - Pedir codigoMateriaPrincipal (debe existir en materias)
     // - Usar cin.getline para el nombre
+    if (escuela.estudiantes != nullptr) {
+        for (int i = 0; i < escuela.cantidadEstudiantes; i++) {
+            cout << "ID del estudiante numero " << (i + 1) << ": ";
+            cin >> escuela.estudiantes[i].id;
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Nombre: ";
+            cin.getline(escuela.estudiantes[i].nombre, 40);
+            cout << "Promedio: ";
+            cin >> escuela.estudiantes[i].promedio;
+            cout << "Codigo de materia principal: ";
+            cin >> escuela.estudiantes[i].codigoMateriaPrincipal;
+        }
+    } else {
+        cout << "Error: No hay espacio para estudiantes" << endl;
+    }
 }
 
 // Llena la lista de materias
@@ -100,6 +127,19 @@ void llenarMaterias(Escuela& escuela) {
     // TODO: Implementar esta funcion
     // - Verificar que escuela.materias no sea nullptr
     // - Pedir codigo, nombre y creditos
+    if (escuela.materias != nullptr) {
+        for (int i = 0; i < escuela.cantidadMaterias; i++) {
+            cout << "Codigo de la materia numero " << (i + 1) << ": ";
+            cin >> escuela.materias[i].codigo;
+           cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Nombre: ";
+            cin.getline(escuela.materias[i].nombre, 40);
+            cout << "Creditos: ";
+            cin >> escuela.materias[i].creditos;
+        }
+    } else {
+        cout << "Error: No hay espacio para materias. Cree la escuela primero." << endl;
+    }
 }
 
 // Muestra la escuela completa
@@ -108,6 +148,29 @@ void mostrarEscuela(const Escuela& escuela) {
     // - Verificar que los punteros no sean nullptr
     // - Mostrar materias primero y luego estudiantes
     // - Usar tabla simple con setw
+    if (escuela.materias != nullptr) {
+        cout << "\nMaterias:" << endl;
+        cout << left << setw(10) << "Codigo" << setw(40) << "Nombre" << setw(10) << "Creditos" << endl;
+        for (int i = 0; i < escuela.cantidadMaterias; i++) {
+            cout << left << setw(10) << escuela.materias[i].codigo
+                 << setw(40) << escuela.materias[i].nombre
+                 << setw(10) << escuela.materias[i].creditos << endl;
+        }
+    } else {
+        cout << "No hay materias para mostrar." << endl;
+    }
+    if (escuela.estudiantes != nullptr) {
+        cout << "\nEstudiantes:" << endl;
+        cout << left << setw(10) << "ID" << setw(40) << "Nombre" << setw(10) << "Promedio" << setw(20) << "Materia Principal" << endl;
+        for (int i = 0; i < escuela.cantidadEstudiantes; i++) {
+            cout << left << setw(10) << escuela.estudiantes[i].id
+                 << setw(40) << escuela.estudiantes[i].nombre
+                 << setw(10) << escuela.estudiantes[i].promedio
+                 << setw(20) << escuela.estudiantes[i].codigoMateriaPrincipal<< endl;
+        }
+    } else {
+        cout << "No hay estudiantes para mostrar." << endl;
+    }
 }
 
 // Retorna el indice del estudiante con mejor promedio
@@ -116,7 +179,18 @@ int buscarMejorPromedio(const Escuela& escuela) {
     // - Verificar que escuela.estudiantes no sea nullptr y cantidadEstudiantes > 0
     // - Comparar promedios para encontrar el maximo
     // - Retornar el indice encontrado
-    return -1; // Placeholder
+    if (escuela.estudiantes != nullptr && escuela.cantidadEstudiantes > 0) {
+        int indiceMax = 0;
+        for (int i = 1; i < escuela.cantidadEstudiantes; i++) {
+            if (escuela.estudiantes[i].promedio > escuela.estudiantes[indiceMax].promedio) {
+                indiceMax = i;
+            }
+        }
+        return indiceMax;
+    } else {
+        cout << "Error: No hay estudiantes para evaluar." << endl;
+        return -1; // Indica que no se pudo encontrar
+    }
 }
 
 // Calcula el promedio general de la escuela
@@ -124,6 +198,16 @@ float calcularPromedioGeneral(const Escuela& escuela) {
     // TODO: Implementar esta funcion
     // - Verificar que escuela.estudiantes no sea nullptr y cantidadEstudiantes > 0
     // - Sumar promedios y dividir por cantidadEstudiantes
+    if (escuela.estudiantes != nullptr && escuela.cantidadEstudiantes > 0) {
+        float suma = 0.0f;
+        for (int i = 0; i < escuela.cantidadEstudiantes; i++) {
+            suma += escuela.estudiantes[i].promedio;
+        }
+        return suma / escuela.cantidadEstudiantes;
+    } else {
+        cout << "Error: No hay estudiantes para calcular el promedio." << endl;
+        return 0.0f; // Indica que no se pudo calcular
+    }
     return 0.0f; // Placeholder
 }
 
@@ -133,6 +217,13 @@ int buscarEstudiantePorId(const Escuela& escuela, int id) {
     // - Verificar que escuela.estudiantes no sea nullptr
     // - Recorrer estudiantes y comparar id
     // - Retornar indice o -1 si no existe
+    if (escuela.estudiantes != nullptr) {
+        for (int i = 0; i < escuela.cantidadEstudiantes; i++) {
+            if (escuela.estudiantes[i].id == id) {
+                return i;
+            }
+        }
+    }
     return -1; // Placeholder
 }
 
@@ -142,6 +233,16 @@ void liberarEscuela(Escuela& escuela) {
     // - Liberar estudiantes y materias con delete[]
     // - Asignar nullptr a ambos punteros
     // - Poner cantidades en 0
+    if (escuela.estudiantes != nullptr) {
+        delete[] escuela.estudiantes;
+        escuela.estudiantes = nullptr;
+    }
+    if (escuela.materias != nullptr) {
+        delete[] escuela.materias;
+        escuela.materias = nullptr;
+    }
+    escuela.cantidadEstudiantes = 0;
+    escuela.cantidadMaterias = 0;
 }
 
 // Muestra el menu principal
