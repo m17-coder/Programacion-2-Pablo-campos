@@ -1,0 +1,2 @@
+Hola, Programacion 2
+Este es un ejemplo de manejo de archivos en C++

@@ -1,0 +1,61 @@
+id,codigo,nombre,descripcion,idProveedor,precio,stock,fechaRegistro
+1,PROD-001,Laptop Dell Inspiron 15,Laptop Intel Core i5 12va gen 8GB RAM 512GB SSD pantalla 15.6 FHD,1,1250.00,15,2025-01-10
+2,PROD-002,Laptop HP Pavilion 14,Laptop AMD Ryzen 5 8GB RAM 256GB SSD pantalla 14 pulgadas FHD IPS,1,980.00,12,2025-01-10
+3,PROD-003,Laptop Lenovo IdeaPad 3,Laptop Intel Core i3 4GB RAM 128GB SSD batería 10 horas,1,720.00,20,2025-01-11
+4,PROD-004,Laptop ASUS VivoBook 16,Laptop Intel Core i7 16GB RAM 1TB SSD pantalla OLED 16 pulgadas,1,1850.00,7,2025-01-11
+5,PROD-005,Laptop MSI Gaming GF63,Laptop Gaming Intel Core i7 RTX 3060 16GB RAM 512GB SSD,1,2100.00,5,2025-01-12
+6,PROD-006,Laptop Acer Aspire 5,Laptop AMD Ryzen 7 16GB RAM 512GB SSD pantalla 15.6 IPS,1,1100.00,10,2025-01-12
+7,PROD-007,Mouse Logitech MX Master 3,Mouse inalámbrico ergonómico 4000 DPI Bluetooth y USB receptor,2,85.50,40,2025-01-13
+8,PROD-008,Mouse Logitech G502 Hero,Mouse gaming con cable 25600 DPI 11 botones programables RGB,2,75.00,35,2025-01-13
+9,PROD-009,Mouse Inalámbrico HP 220,Mouse inalámbrico silencioso 1600 DPI receptor USB nano,2,22.00,60,2025-01-14
+10,PROD-010,Mouse Vertical Anker,Mouse vertical ergonómico inalámbrico 3 niveles DPI,2,38.00,30,2025-01-14
+11,PROD-011,Teclado Mecánico Redragon K552,Teclado mecánico compacto TKL RGB switches red anti-ghosting,2,65.00,25,2025-01-15
+12,PROD-012,Teclado HP 125,Teclado con cable USB membrana español diseño ergonómico,2,18.50,80,2025-01-15
+13,PROD-013,Teclado Inalámbrico Logitech K380,Teclado Bluetooth multidispositivo compacto perfil bajo,2,55.00,28,2025-01-16
+14,PROD-014,Teclado Mecánico Corsair K70,Teclado mecánico full-size RGB Cherry MX Red aluminio,4,145.00,15,2025-01-16
+15,PROD-015,Monitor Samsung 24 FHD,Monitor LED 24 pulgadas 1080p 75Hz HDMI VGA bordes delgados,1,320.00,10,2025-01-18
+16,PROD-016,Monitor LG 27 QHD,Monitor IPS 27 pulgadas 2560x1440 165Hz DisplayPort HDMI,1,580.00,8,2025-01-18
+17,PROD-017,Monitor AOC 22 FHD,Monitor LED 22 pulgadas 1080p 60Hz HDMI VGA bajo consumo,1,210.00,14,2025-01-19
+18,PROD-018,Monitor Curvo Samsung 32,Monitor curvo VA 32 pulgadas 1080p 240Hz HDR FreeSync,1,650.00,6,2025-01-19
+19,PROD-019,Monitor Portátil ASUS ZenScreen,Monitor USB-C 15.6 pulgadas FHD IPS para laptops,3,280.00,9,2025-01-20
+20,PROD-020,Audífonos Sony WH-1000XM5,Audífonos inalámbricos cancelación de ruido activa 30 horas batería,3,280.00,20,2025-02-01
+21,PROD-021,Audífonos JBL Tune 510BT,Audífonos Bluetooth over-ear plegables 40 horas autonomía,3,55.00,45,2025-02-01
+22,PROD-022,Audífonos Hyperx Cloud II,Audífonos gaming con cable micrófono extraíble surround 7.1,3,95.00,22,2025-02-02
+23,PROD-023,Audífonos Bose QuietComfort 45,Audífonos premium ANC Bluetooth 24 horas batería multipunto,3,350.00,10,2025-02-02
+24,PROD-024,Earbuds Xiaomi Redmi Buds 4,Auriculares TWS Bluetooth 5.3 ANC 28 horas con estuche,3,40.00,50,2025-02-03
+25,PROD-025,Disco SSD Kingston A400 1TB,Disco sólido interno SATA III lectura 550MB/s escritura 500MB/s,2,95.00,35,2025-02-05
+26,PROD-026,Disco SSD NVMe Samsung 970 Evo 500GB,Disco NVMe PCIe 3.0 M.2 lectura 3500MB/s escritura 2300MB/s,2,110.00,28,2025-02-05
+27,PROD-027,Disco SSD Externo WD 1TB,Disco externo USB 3.0 lectura 540MB/s compacto resistente a golpes,2,85.00,20,2025-02-06
+28,PROD-028,Disco Duro Externo Seagate 2TB,HDD portátil USB 3.0 compatible PC Mac PS4 Xbox,2,70.00,18,2025-02-06
+29,PROD-029,Disco SSD NVMe 2TB Crucial P3,Disco NVMe PCIe 3.0 M.2 2280 lectura 3500MB/s para laptops y PC,2,160.00,15,2025-02-07
+30,PROD-030,Memoria RAM Corsair Vengeance 16GB,Kit 2x8GB DDR4 3200MHz CL16 compatible Intel y AMD,4,75.00,50,2025-02-08
+31,PROD-031,Memoria RAM Kingston Fury 32GB,Kit 2x16GB DDR4 3600MHz CL18 disipador aluminio RGB,4,140.00,22,2025-02-08
+32,PROD-032,Memoria RAM Laptop 8GB DDR4,SODIMM DDR4 3200MHz compatible laptops HP Dell Lenovo,4,35.00,40,2025-02-09
+33,PROD-033,Memoria RAM Kingston 4GB DDR4,DIMM DDR4 2666MHz compatible placas AM4 e Intel LGA1200,4,18.00,55,2025-02-09
+34,PROD-034,Cámara Web Logitech C920,Full HD 1080p 30fps corrección automática de luz micrófono estéreo,2,110.00,18,2025-02-10
+35,PROD-035,Cámara Web 4K Logitech Brio,Ultra HD 4K 30fps HDR autofocus campo visual ajustable 65-90°,2,220.00,10,2025-02-10
+36,PROD-036,Cámara Web Xiaomi C200,HD 1080p 30fps micrófono integrado con reducción de ruido USB-A,2,28.00,35,2025-02-11
+37,PROD-037,Impresora HP LaserJet Pro M404n,Láser monocromática 40ppm red ethernet sin WiFi,5,420.00,8,2025-02-15
+38,PROD-038,Impresora Epson EcoTank L3250,Inyección de tinta color WiFi sistema de tanque 5000 pág color,5,290.00,12,2025-02-15
+39,PROD-039,Impresora Canon PIXMA G3160,Multifuncional color WiFi impresión copia escaneo tanque de tinta,5,265.00,10,2025-02-16
+40,PROD-040,Impresora HP DeskJet 2775,Multifuncional color WiFi Bluetooth HP+ compatible móvil,5,115.00,20,2025-02-16
+41,PROD-041,Router TP-Link AX3000,WiFi 6 dual band 2.4GHz y 5GHz 4 puertos Gigabit MU-MIMO,3,135.00,22,2025-03-01
+42,PROD-042,Router ASUS RT-AX55,WiFi 6 AX1800 dual band 4 antenas MU-MIMO OFDMA control parental,3,120.00,15,2025-03-01
+43,PROD-043,Router Mikrotik hAP ac2,Doble banda 2.4 y 5GHz 5 puertos Gigabit RouterOS L4,3,95.00,10,2025-03-02
+44,PROD-044,Switch TP-Link 8 puertos,Switch no administrable 8 puertos Fast Ethernet 100Mbps,3,25.00,30,2025-03-02
+45,PROD-045,Switch Gigabit TP-Link 16 puertos,Switch no administrable 16 puertos Gigabit plug and play,3,65.00,18,2025-03-03
+46,PROD-046,Tarjeta Gráfica GTX 1650 4GB,GPU NVIDIA 4GB GDDR6 HDMI DisplayPort DVI bajo consumo,4,280.00,8,2025-03-05
+47,PROD-047,Tarjeta Gráfica RX 6600 8GB,GPU AMD Radeon 8GB GDDR6 PCIe 4.0 soporte Ray Tracing,4,350.00,6,2025-03-05
+48,PROD-048,Procesador Intel Core i5-12400,6 núcleos 12 hilos 4.4GHz turbo socket LGA1700 sin cooler,4,210.00,12,2025-03-06
+49,PROD-049,Procesador AMD Ryzen 5 5600,6 núcleos 12 hilos 4.4GHz turbo socket AM4 con cooler Wraith Stealth,4,175.00,15,2025-03-06
+50,PROD-050,Placa Base ASUS Prime B550M,Micro-ATX socket AM4 DDR4 HDMI DP USB 3.2 M.2 PCIe 4.0,4,130.00,10,2025-03-07
+51,PROD-051,Placa Base MSI PRO B660M,Micro-ATX socket LGA1700 DDR4 HDMI PCIe 4.0 USB 3.2,4,145.00,8,2025-03-07
+52,PROD-052,Fuente de Poder Corsair 650W,80 Plus Bronze semi-modular 650W ATX estable y silenciosa,4,90.00,14,2025-03-08
+53,PROD-053,Fuente de Poder EVGA 550W,80 Plus Gold totalmente modular 550W cableado mallado,4,85.00,12,2025-03-08
+54,PROD-054,Gabinete Cooler Master Q300L,Micro-ATX panel lateral acrílico filtros magnéticos polvo,4,55.00,16,2025-03-09
+55,PROD-055,Gabinete NZXT H510,Mid-tower ATX panel vidrio templado cable management integrado,4,110.00,9,2025-03-09
+56,PROD-056,Cooler CPU Cooler Master Hyper 212,Disipador torre 120mm compatible Intel AMD 150W TDP silencioso,4,35.00,22,2025-03-10
+57,PROD-057,Pad Mouse XL Logitech G840,Pad de escritorio 900x300mm superficie óptima baja fricción,2,45.00,28,2025-03-11
+58,PROD-058,Hub USB-C 7 en 1 Anker,Hub multipuerto HDMI 4K USB-A 3.0 SD microSD PD 100W,3,55.00,25,2025-03-12
+59,PROD-059,Webcam con Ring Light Aukey,Cámara 1080p luz anular integrada 3 modos color USB-A plug and play,2,48.00,20,2025-03-13
+60,PROD-060,UPS APC 750VA,Sistema de alimentación ininterrumpida 750VA 425W 6 tomas protección picos,5,185.00,11,2025-03-14

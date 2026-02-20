@@ -871,6 +871,51 @@ struct Tienda {
     int siguienteIdTransaccion;
 };
 // Crea la tienda con arreglos dinamicos
+
+bool existeProveedor(Tienda* tienda, int id){
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        if (tienda->proveedores[i].id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+bool existeCliente(Tienda* tienda, int id){
+    for (int i = 0; i < tienda->numClientes; i++) {
+        if (tienda->clientes[i].id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+void obtenerFechaActual(char* buffer){
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    sprintf(buffer, "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
+}
+bool codigoDuplicado(Tienda* tienda, const char* codigo){
+    for (int i = 0; i < tienda->numProductos; i++) {
+        if (strcmp(tienda->productos[i].codigo, codigo) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+void redimensionarProductos(Tienda* tienda){
+    int nuevaCapacidad = tienda->capacidadProductos * 2;
+    Producto* nuevoArray = new Producto[nuevaCapacidad];
+    
+    // Copiar datos
+    for (int i = 0; i < tienda->numProductos; i++) {
+        nuevoArray[i] = tienda->productos[i];
+    }
+    
+    // Liberar viejo y actualizar
+    delete[] tienda->productos;
+    tienda->productos = nuevoArray;
+    tienda->capacidadProductos = nuevaCapacidad;
+}
+
 void inicializarTienda(Tienda* tienda, const char* nombre, const char* rif){
     strcpy(tienda->nombre, nombre);
     strcpy(tienda->rif, rif);
@@ -913,14 +958,8 @@ void crearProducto(Tienda* tienda){
     float precio;
     int stock;
     char buffer[11];
-    cout << "¿Desea cancelar el registro? (S/N): ";
     char respuesta;
-    cin >> respuesta;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    if (respuesta == 'S' || respuesta == 's') {
-        cout << "Registro de producto cancelado." << endl;
-        return;
-    }
     do{
     cout << "Ingrese el código del producto: ";
     cin.getline(codigo, 20);
@@ -940,7 +979,7 @@ void crearProducto(Tienda* tienda){
     do{
     cout << "Ingrese el stock inicial: ";
     cin >> stock;
-    }while(stock < 0);
+    } while(stock < 0);
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
     cout << "Ingrese la descripción del producto: ";
     cin.getline(descripcion, 200);
@@ -969,9 +1008,7 @@ void crearProducto(Tienda* tienda){
         tienda->numProductos++;
     }
 }
-void buscarProducto(Tienda* tienda){
-
-}
+void buscarProducto(Tienda* tienda){}
 void actualizarProducto(Tienda* tienda){}
 void actualizarStockProducto(Tienda* tienda){}
 void listarProductos(Tienda* tienda){}
@@ -995,22 +1032,19 @@ void buscarTransacciones(Tienda* tienda){}
 void listarTransacciones(Tienda* tienda){}
 void cancelarTransaccion(Tienda* tienda){}
 // Funciones Auxiliares
-void redimensionarProductos(Tienda* tienda){}
+
 void redimensionarProveedores(Tienda* tienda){}
 void redimensionarClientes(Tienda* tienda){}
 void redimensionarTransacciones(Tienda* tienda){}
 bool validarEmail(const char* email){}
 bool validarFecha(const char* fecha){}
 bool existeProducto(Tienda* tienda, int id){}
-bool existeProveedor(Tienda* tienda, int id){}
-bool existeCliente(Tienda* tienda, int id){}
-bool codigoDuplicado(Tienda* tienda, const char* codigo){}
+
 bool rifDuplicado(Tienda* tienda, const char* rif){}
 int buscarProductoPorId(Tienda* tienda, int id){}
 int buscarProveedorPorId(Tienda* tienda, int id){}
 int buscarClientePorId(Tienda* tienda, int id){}
 int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){}
-void obtenerFechaActual(char* buffer){}  // Formato YYYY-MM-DD
 void convertirAMinusculas(char* cadena){}
 bool contieneSubstring(const char* texto, const char* busqueda){}
 
