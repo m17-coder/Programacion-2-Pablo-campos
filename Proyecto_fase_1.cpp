@@ -1033,20 +1033,80 @@ void listarTransacciones(Tienda* tienda){}
 void cancelarTransaccion(Tienda* tienda){}
 // Funciones Auxiliares
 
-void redimensionarProveedores(Tienda* tienda){}
-void redimensionarClientes(Tienda* tienda){}
-void redimensionarTransacciones(Tienda* tienda){}
-bool validarEmail(const char* email){}
-bool validarFecha(const char* fecha){}
-bool existeProducto(Tienda* tienda, int id){}
+void redimensionarProveedores(Tienda* tienda){
+    int nuevaCapacidad = tienda->capacidadProveedores * 2;
+    Proveedor* nuevoespacio = new Proveedor[nuevaCapacidad];
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        nuevoespacio[i] = tienda->proveedores[i];
+    }
+    delete[] tienda->proveedores;
+    tienda->proveedores = nuevoespacio;
+    tienda->capacidadProveedores = nuevaCapacidad;
+}
+void redimensionarClientes(Tienda* tienda){
+    int nuevaCapacidad = tienda->capacidadClientes * 2;
+    Cliente* nuevoespacio = new Cliente[nuevaCapacidad];
+    for (int i = 0; i < tienda->numClientes; i++) {
+        nuevoespacio[i] = tienda->clientes[i];
+    }
+    delete[] tienda->clientes;
+    tienda->clientes = nuevoespacio;
+    tienda->capacidadClientes = nuevaCapacidad;
+}
+void redimensionarTransacciones(Tienda* tienda){
+    int nuevaCapacidad = tienda->capacidadTransacciones * 2;
+    Transaccion* nuevoespacio = new Transaccion[nuevaCapacidad];
+    for (int i = 0; i < tienda->numTransacciones; i++) {
+        nuevoespacio[i] = tienda->transacciones[i];
+    }
+    delete[] tienda->transacciones;
+    tienda->transacciones = nuevoespacio;
+    tienda->capacidadTransacciones = nuevaCapacidad;
+}
+bool validarEmail(const char* email){
+    
+}
+bool validarFecha(const char* fecha){
+    
+}
+bool existeProducto(Tienda* tienda, int id){
+    for (int i = 0; i < tienda->numProductos; i++) {
+        if (tienda->productos[i].id == id) {
+            return true;
+        }
+    }
+    return false;
+}
 
-bool rifDuplicado(Tienda* tienda, const char* rif){}
-int buscarProductoPorId(Tienda* tienda, int id){}
+bool rifDuplicado(Tienda* tienda, const char* rif){
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        if (strcmp(tienda->proveedores[i].rif, rif) == 0) {
+            return true;
+        }
+    }
+    for (int i = 0; i < tienda->numClientes; i++) {
+        if (strcmp(tienda->clientes[i].cedula, rif) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+int buscarProductoPorId(Tienda* tienda, int id){
+
+}
 int buscarProveedorPorId(Tienda* tienda, int id){}
-int buscarClientePorId(Tienda* tienda, int id){}
-int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){}
-void convertirAMinusculas(char* cadena){}
-bool contieneSubstring(const char* texto, const char* busqueda){}
+int buscarClientePorId(Tienda* tienda, int id){
+
+}
+int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){
+
+}
+void convertirAMinusculas(char* cadena){
+
+}
+bool contieneSubstring(const char* texto, const char* busqueda){
+
+}
 
 int main() {
     SetConsoleOutputCP(CP_UTF8);

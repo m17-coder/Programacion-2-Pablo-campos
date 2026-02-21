@@ -56,11 +56,7 @@ int main() {
     cout << "ingrese id del proveedor a buscar: ";
     int idProveedor;
     cin >> idProveedor;
-    for(int i=0; i < contador; i++){
-        if(producto[i].idProveedor == idProveedor){
-            cout << "Producto: " << producto[i].nombre <<endl;
-        }
-    }
+    
     archivo.close();
     return 0;
 }
