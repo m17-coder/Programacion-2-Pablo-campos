@@ -809,6 +809,7 @@ struct Producto {
     float precio;              // Precio unitario
     int stock;                 // Cantidad en inventario
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
+    char fecha_vencimiento[11]; // Formato: YYYY-MM-DD
 };
 
 struct Proveedor {
@@ -872,7 +873,88 @@ struct Tienda {
 };
 // Crea la tienda con arreglos dinamicos
 
+
+int cancelarRegistro(const char* mensaje){
+    char respuesta;
+    cout << mensaje << " (S/N): ";
+    cin >> respuesta;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return (respuesta == 'S' || respuesta == 's');
+}
+
+int submenu_producto(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║        GESTIÓN DE PRODUCTOS              ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar nuevo producto" << endl;
+    cout << "2. Buscar producto" << endl;
+    cout << "3. Actualizar producto" << endl;
+    cout << "4. Actualizar stock manualmente" << endl;
+    cout << "5. Listar todos los productos" << endl;
+    cout << "6. Eliminar producto" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return opcion;
+}
+
+int submenu_proveedor(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║       GESTIÓN DE PROVEEDORES              ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar proveedor" << endl;
+    cout << "2. Buscar proveedor" << endl;
+    cout << "3. Actualizar proveedor" << endl;
+    cout << "4. Listar proveedores" << endl;
+    cout << "5. Eliminar proveedor" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return opcion;
+}
+
+int submenu_cliente(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║         GESTIÓN DE CLIENTES               ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar cliente" << endl;
+    cout << "2. Buscar cliente" << endl;
+    cout << "3. Actualizar cliente" << endl;
+    cout << "4. Listar clientes" << endl;
+    cout << "5. Eliminar cliente" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return opcion;
+}
+
+int submenu_transaccion(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║       GESTIÓN DE TRANSACCIONES            ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar compra (a proveedor)" << endl;
+    cout << "2. Registrar venta (a cliente)" << endl;
+    cout << "3. Buscar transacciones" << endl;
+    cout << "4. Listar todas las transacciones" << endl;
+    cout << "5. Cancelar/Anular transacción" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    return opcion;
+}
+
+
+
 bool existeProveedor(Tienda* tienda, int id){
+    if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProveedores; i++) {
         if (tienda->proveedores[i].id == id) {
             return true;
@@ -881,6 +963,7 @@ bool existeProveedor(Tienda* tienda, int id){
     return false;
 }
 bool existeCliente(Tienda* tienda, int id){
+    if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numClientes; i++) {
         if (tienda->clientes[i].id == id) {
             return true;
@@ -889,11 +972,25 @@ bool existeCliente(Tienda* tienda, int id){
     return false;
 }
 void obtenerFechaActual(char* buffer){
+    if(buffer == nullptr) return;
     SYSTEMTIME st;
     GetLocalTime(&st);
     sprintf(buffer, "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
 }
+
+bool validarfechavencimiento(const char* fecha_vencimiento){
+    if (fecha_vencimiento == nullptr) return false;
+    char* fechaActual = new char[11];
+    obtenerFechaActual(fechaActual);
+    if(strlen(fecha_vencimiento) != 10) return false; // Verificar formato YYYY-MM-DD
+    bool esValida = strcmp(fecha_vencimiento, fechaActual) > 0; // La fecha de vencimiento debe ser posterior a la fecha actual
+    delete[] fechaActual;
+    return esValida;
+}
+
+
 bool codigoDuplicado(Tienda* tienda, const char* codigo){
+    if(tienda == nullptr || codigo == nullptr) return false;
     for (int i = 0; i < tienda->numProductos; i++) {
         if (strcmp(tienda->productos[i].codigo, codigo) == 0) {
             return true;
@@ -902,21 +999,23 @@ bool codigoDuplicado(Tienda* tienda, const char* codigo){
     return false;
 }
 void redimensionarProductos(Tienda* tienda){
+    if(tienda == nullptr) return;
     int nuevaCapacidad = tienda->capacidadProductos * 2;
-    Producto* nuevoArray = new Producto[nuevaCapacidad];
+    Producto* nuevoespacio = new Producto[nuevaCapacidad];
     
     // Copiar datos
     for (int i = 0; i < tienda->numProductos; i++) {
-        nuevoArray[i] = tienda->productos[i];
+        nuevoespacio[i] = tienda->productos[i];
     }
     
     // Liberar viejo y actualizar
     delete[] tienda->productos;
-    tienda->productos = nuevoArray;
+    tienda->productos = nuevoespacio;
     tienda->capacidadProductos = nuevaCapacidad;
 }
 
 void inicializarTienda(Tienda* tienda, const char* nombre, const char* rif){
+    if(tienda == nullptr) return;
     strcpy(tienda->nombre, nombre);
     strcpy(tienda->rif, rif);
     
@@ -947,9 +1046,152 @@ void liberarTienda(Tienda* tienda){
     delete[] tienda->clientes;
     delete[] tienda->transacciones;
     delete tienda;
-
+    tienda = nullptr;
 }
-// Funciones CRUD - PRODUCTOS
+
+
+void redimensionarProveedores(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int nuevaCapacidad = tienda->capacidadProveedores * 2;
+    Proveedor* nuevoespacio = new Proveedor[nuevaCapacidad];
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        nuevoespacio[i] = tienda->proveedores[i];
+    }
+    delete[] tienda->proveedores;
+    tienda->proveedores = nuevoespacio;
+    tienda->capacidadProveedores = nuevaCapacidad;
+}
+void redimensionarClientes(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int ampliar = tienda->capacidadClientes * 2;
+    Cliente* nuevoespacio = new Cliente[ampliar];
+    for (int i = 0; i < tienda->numClientes; i++) {
+        nuevoespacio[i] = tienda->clientes[i];
+    }
+    delete[] tienda->clientes;
+    tienda->clientes = nuevoespacio;
+    tienda->capacidadClientes = ampliar;
+}
+void redimensionarTransacciones(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int nuevaCapacidad = tienda->capacidadTransacciones * 2;
+    Transaccion* nuevoespacio = new Transaccion[nuevaCapacidad];
+    for (int i = 0; i < tienda->numTransacciones; i++) {
+        nuevoespacio[i] = tienda->transacciones[i];
+    }
+    delete[] tienda->transacciones;
+    tienda->transacciones = nuevoespacio;
+    tienda->capacidadTransacciones = nuevaCapacidad;
+}
+bool validarEmail(const char* email){
+    if(email == nullptr) return false;
+    const char* atPos = strchr(email, '@');
+    if (!atPos) return false; // No contiene '@'
+    
+    const char* dotPos = strchr(atPos, '.');
+    if (!dotPos) return false; // No contiene '.' después del '@'
+    
+    if (atPos == email || dotPos == atPos + 1 || dotPos == email + strlen(email) - 1) {
+        return false; // '@' no puede ser el primer carácter, '.' no puede estar justo después de '@' ni al final
+    }
+    
+    return true;
+    
+}
+
+bool existeProducto(Tienda* tienda, int id){
+    if(tienda == nullptr) return false;
+    for (int i = 0; i < tienda->numProductos; i++) {
+        if (tienda->productos[i].id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool rifDuplicado(Tienda* tienda, const char* rif){
+    if(tienda == nullptr) return false;
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        if (strcmp(tienda->proveedores[i].rif, rif) == 0) {
+            return true;
+        }
+    }
+    for (int i = 0; i < tienda->numClientes; i++) {
+        if (strcmp(tienda->clientes[i].cedula, rif) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+int buscarProductoPorId(Tienda* tienda, int id){
+    if(tienda == nullptr) return tienda->numProductos;
+    for (int i = 0; i < tienda->numProductos; i++) {
+        if (tienda->productos[i].id == id) {
+            return i; // Retorna el índice del producto encontrado
+        }
+    }
+     cout << "Producto no encontrado." << endl;
+     return tienda->numProductos; // Retorna un valor fuera de rango para indicar no encontrado
+}
+int buscarProveedorPorId(Tienda* tienda, int id){
+    if(tienda == nullptr) return tienda->numProveedores;
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        if (tienda->proveedores[i].id == id) {
+            return i; // Retorna el índice del proveedor encontrado
+        }
+    }
+     cout << "Proveedor no encontrado." << endl;
+     return tienda->numProveedores; // Retorna un valor fuera de rango para indicar no encontrado
+}
+int buscarClientePorId(Tienda* tienda, int id){
+    if(tienda == nullptr) return tienda->numClientes;
+    for (int i = 0; i < tienda->numClientes; i++) {
+        if (tienda->clientes[i].id == id) {
+            return i; // Retorna el índice del cliente encontrado
+        }
+    }
+     cout << "Cliente no encontrado." << endl;
+     return tienda->numClientes; // Retorna un valor fuera de rango para indicar no encontrado
+}
+int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){
+    if(tienda == nullptr || nombre == nullptr) {
+        *numResultados = 0;
+        return nullptr;
+    }
+    int* indices = new int[tienda->numProductos];
+    *numResultados = 0;
+    for (int i = 0; i < tienda->numProductos; i++) {
+        if (contieneSubstring(tienda->productos[i].nombre, nombre)) {
+            indices[*numResultados] = i;
+            (*numResultados)++;
+        }
+    }
+    return indices;
+}
+void convertirAMinusculas(char* cadena){
+    if(cadena == nullptr) return;
+    for (int i = 0; cadena[i] != '\0'; i++) {
+        cadena[i] = tolower(cadena[i]);
+    }
+}
+bool contieneSubstring(const char* texto, const char* busqueda){
+    if(texto == nullptr || busqueda == nullptr) return false;
+    int lenTexto = strlen(texto);
+    int lenBusqueda = strlen(busqueda);
+    if (lenBusqueda > lenTexto) return false;
+    for (int i = 0; i <= lenTexto - lenBusqueda; i++) {
+        bool encontrado = true;
+        for (int j = 0; j < lenBusqueda; j++) {
+            if (tolower(texto[i + j]) != tolower(busqueda[j])) {
+                encontrado = false;
+                break;
+            }
+        }
+        if (encontrado) return true;
+    }
+    return false;
+}
+
 void crearProducto(Tienda* tienda){
     char codigo[20];
     char nombre[100];
@@ -1008,7 +1250,8 @@ void crearProducto(Tienda* tienda){
         tienda->numProductos++;
     }
 }
-void buscarProducto(Tienda* tienda){}
+void buscarProducto(Tienda* tienda){
+}
 void actualizarProducto(Tienda* tienda){}
 void actualizarStockProducto(Tienda* tienda){}
 void listarProductos(Tienda* tienda){}
@@ -1032,81 +1275,6 @@ void buscarTransacciones(Tienda* tienda){}
 void listarTransacciones(Tienda* tienda){}
 void cancelarTransaccion(Tienda* tienda){}
 // Funciones Auxiliares
-
-void redimensionarProveedores(Tienda* tienda){
-    int nuevaCapacidad = tienda->capacidadProveedores * 2;
-    Proveedor* nuevoespacio = new Proveedor[nuevaCapacidad];
-    for (int i = 0; i < tienda->numProveedores; i++) {
-        nuevoespacio[i] = tienda->proveedores[i];
-    }
-    delete[] tienda->proveedores;
-    tienda->proveedores = nuevoespacio;
-    tienda->capacidadProveedores = nuevaCapacidad;
-}
-void redimensionarClientes(Tienda* tienda){
-    int nuevaCapacidad = tienda->capacidadClientes * 2;
-    Cliente* nuevoespacio = new Cliente[nuevaCapacidad];
-    for (int i = 0; i < tienda->numClientes; i++) {
-        nuevoespacio[i] = tienda->clientes[i];
-    }
-    delete[] tienda->clientes;
-    tienda->clientes = nuevoespacio;
-    tienda->capacidadClientes = nuevaCapacidad;
-}
-void redimensionarTransacciones(Tienda* tienda){
-    int nuevaCapacidad = tienda->capacidadTransacciones * 2;
-    Transaccion* nuevoespacio = new Transaccion[nuevaCapacidad];
-    for (int i = 0; i < tienda->numTransacciones; i++) {
-        nuevoespacio[i] = tienda->transacciones[i];
-    }
-    delete[] tienda->transacciones;
-    tienda->transacciones = nuevoespacio;
-    tienda->capacidadTransacciones = nuevaCapacidad;
-}
-bool validarEmail(const char* email){
-    
-}
-bool validarFecha(const char* fecha){
-    
-}
-bool existeProducto(Tienda* tienda, int id){
-    for (int i = 0; i < tienda->numProductos; i++) {
-        if (tienda->productos[i].id == id) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool rifDuplicado(Tienda* tienda, const char* rif){
-    for (int i = 0; i < tienda->numProveedores; i++) {
-        if (strcmp(tienda->proveedores[i].rif, rif) == 0) {
-            return true;
-        }
-    }
-    for (int i = 0; i < tienda->numClientes; i++) {
-        if (strcmp(tienda->clientes[i].cedula, rif) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-int buscarProductoPorId(Tienda* tienda, int id){
-
-}
-int buscarProveedorPorId(Tienda* tienda, int id){}
-int buscarClientePorId(Tienda* tienda, int id){
-
-}
-int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){
-
-}
-void convertirAMinusculas(char* cadena){
-
-}
-bool contieneSubstring(const char* texto, const char* busqueda){
-
-}
 
 int main() {
     SetConsoleOutputCP(CP_UTF8);
