@@ -874,13 +874,7 @@ struct Tienda {
 // Crea la tienda con arreglos dinamicos
 
 
-int cancelarRegistro(const char* mensaje){
-    char respuesta;
-    cout << mensaje << " (S/N): ";
-    cin >> respuesta;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    return (respuesta == 'S' || respuesta == 's');
-}
+
 
 int submenu_producto(){
     int opcion;
@@ -950,9 +944,16 @@ int submenu_transaccion(){
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
     return opcion;
 }
-
-
-
+    void mostrarProveedor(Proveedor* proveedor){
+        if(proveedor == nullptr) return;
+    cout<<"ID: " << proveedor->id << endl;
+    cout<<"Nombre: " << proveedor->nombre << endl;
+    cout<<"RIF: " << proveedor->rif << endl;
+    cout<<"Teléfono: " << proveedor->telefono << endl;
+    cout<<"Email: " << proveedor->email << endl;
+    cout<<"Dirección: " << proveedor->direccion << endl;
+    cout<<"Fecha de Registro: " << proveedor->fechaRegistro << endl;
+    }
 bool existeProveedor(Tienda* tienda, int id){
     if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProveedores; i++) {
@@ -1257,11 +1258,177 @@ void actualizarStockProducto(Tienda* tienda){}
 void listarProductos(Tienda* tienda){}
 void eliminarProducto(Tienda* tienda){}
 // Funciones CRUD - PROVEEDORES
-void crearProveedor(Tienda* tienda){}
-void buscarProveedor(Tienda* tienda){}
-void actualizarProveedor(Tienda* tienda){}
-void listarProveedores(Tienda* tienda){}
-void eliminarProveedor(Tienda* tienda){}
+void crearProveedor(Tienda* tienda){
+    char nombre[100];
+    char rif[20];
+    char telefono[20];
+    char email[100];
+    char direccion[200];
+    char buffer[11];
+    char respuesta;
+    cout << "Ingrese el nombre del proveedor: ";
+    cin.getline(nombre, 100);
+    cout << "Ingrese el RIF del proveedor: ";
+    while (rifDuplicado(tienda, rif)) {
+        cout << "ERROR: El RIF '" << rif << "' ya está registrado." << endl;
+        cin.getline(rif, 20);
+    }
+    cout << "Ingrese el teléfono del proveedor: ";
+    cin.getline(telefono, 20);
+    cout << "Ingrese el email del proveedor: ";
+    while(!validarEmail(email)) {
+        cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+        cin.getline(email, 100);
+    }
+    cout << "Ingrese la dirección del proveedor: ";
+    cin.getline(direccion, 200);
+    cout << "Resumen del proveedor a registrar:" << endl;
+    cout << "Nombre: " << nombre << endl;
+    cout << "RIF: " << rif << endl;
+    cout << "Teléfono: " << telefono << endl;
+    cout << "Email: " << email << endl;
+    cout << "Dirección: " << direccion << endl;
+    obtenerFechaActual(buffer);
+    cout <<"Fecha de registro: "<<buffer<<endl;
+    cout << "¿Guardar proveedor? (S/N): ";
+    cin >> respuesta;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    if (respuesta == 'S' || respuesta == 's') {
+        if (tienda->numProveedores >= tienda->capacidadProveedores) {
+            redimensionarProveedores(tienda);
+        }
+        tienda->proveedores[tienda->numProveedores].id = tienda->siguienteIdProveedor++;
+        strcpy(tienda->proveedores[tienda->numProveedores].nombre, nombre);
+        strcpy(tienda->proveedores[tienda->numProveedores].rif, rif);
+        strcpy(tienda->proveedores[tienda->numProveedores].telefono, telefono);
+        strcpy(tienda->proveedores[tienda->numProveedores].email, email);
+        strcpy(tienda->proveedores[tienda->numProveedores].direccion, direccion);
+        tienda->numProveedores++;
+    }
+
+}
+void buscarProveedor(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int id;
+    cout << "Ingrese el ID del proveedor a buscar: ";
+    cin >> id;
+    int i = buscarProveedorPorId(tienda, id);
+    while(i == tienda->numProveedores) {
+        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarProveedorPorId(tienda, id);
+    }
+    mostrarProveedor(&tienda->proveedores[i]);
+}
+void actualizarProveedor(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int id;
+    cout << "Ingrese el ID del proveedor a actualizar: ";
+    cin >> id;
+    int i = buscarProveedorPorId(tienda, id);
+    while(i == tienda->numProveedores) {
+        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarProveedorPorId(tienda, id);
+    }
+    char nombre[100];
+    char rif[20];
+    char telefono[20];
+    char email[100];
+    char direccion[200];
+
+    cout << "Que desea editar?"<< endl;
+    cout << "1. Nombre" << endl;
+    cout << "2. RIF" << endl;
+    cout << "3. Teléfono" << endl;
+    cout << "4. Email" << endl;
+    cout << "5. Dirección" << endl;
+    cout << "Seleccione una opción: ";
+    int opcion;
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    switch (opcion) {
+        case 1:
+            cout << "Ingrese el nuevo nombre: ";
+            cin.getline(nombre, 100);
+            strcpy(tienda->proveedores[i].nombre, nombre);
+            break;
+        case 2:
+            cout << "Ingrese el nuevo RIF: ";
+            while (rifDuplicado(tienda, rif)) {
+                cout << "ERROR: El RIF '" << rif << "' ya está registrado." << endl;
+                cin.getline(rif, 20);
+            }
+            strcpy(tienda->proveedores[i].rif, rif);
+            break;
+        case 3:
+            cout << "Ingrese el nuevo teléfono: ";
+            cin.getline(telefono, 20);
+            strcpy(tienda->proveedores[i].telefono, telefono);
+            break;
+        case 4:
+            cout << "Ingrese el nuevo email: ";
+            while(!validarEmail(email)) {
+                cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+                cin.getline(email, 100);
+            }
+            strcpy(tienda->proveedores[i].email, email);
+            break;
+        case 5:
+            cout << "Ingrese la nueva dirección: ";
+            cin.getline(direccion, 200);
+            strcpy(tienda->proveedores[i].direccion, direccion);
+            break;
+        default:
+            cout << "Opción inválida. No se realizaron cambios." << endl;
+    }
+}
+void listarProveedores(Tienda* tienda){
+    if(tienda == nullptr) return;
+    cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
+    cout << "║                         LISTADO DE PROVEEDORES                             ║" << endl;
+    cout << "╠════╦══════════════════╦══════════════╦══════════════╦════════╦════════╦══════╣" << endl;
+    cout << "║ ID ║     Nombre       ║  RIF         ║  Teléfono     ║ Email  ║ Dirección      ║ Fecha Registro ║" << endl;
+    cout << "╠════╬══════════════════╬══════════════╬══════════════╬════════╬════════╬══════╣" << endl;
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        Proveedor* p = &tienda->proveedores[i];
+        cout << "║ " << setw(2) << p->id << " ";
+        cout << "║ " << setw(16) << p->nombre << " ";
+        cout << "║ " << setw(12) << p->rif << " ";
+        cout << "║ " << setw(12) << p->telefono << " ";
+        cout << "║ " << setw(6) << p->email << " ";
+        cout << "║ " << setw(14) << p->direccion << " ";
+        cout <<"║ "<< setw(14) << p->fechaRegistro <<" ║"<< endl;
+    }
+    cout << "╚════╩══════════════════╩══════════════╩══════════════╩════════╩════════╩══════╝" << endl;
+    cout <<"Total de proveedores: "<<tienda->numProveedores<<endl;
+}
+void eliminarProveedor(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int id;
+    cout << "Ingrese el ID del proveedor a eliminar: ";
+    cin >> id;
+    int i = buscarProveedorPorId(tienda, id);
+    while(i == tienda->numProveedores) {
+        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarProveedorPorId(tienda, id);
+    }
+    if (existeProducto(tienda, id)) {
+        cout << "Esta seguro de eliminar el proveedor con ID " << id << "? (s/n): ";
+        char respuesta;
+        cin >> respuesta;
+        if (respuesta != 's' && respuesta != 'S') {
+            cout << "Iniciando eliminacion..." << endl;
+        }
+    }
+    
+    for(int j = i; j < tienda->numProveedores - 1; j++) {
+        tienda->proveedores[j] = tienda->proveedores[j + 1];
+    }
+    tienda->numProveedores--;
+
+}
 // Funciones CRUD - CLIENTES
 void crearCliente(Tienda* tienda){}
 void buscarCliente(Tienda* tienda){}
