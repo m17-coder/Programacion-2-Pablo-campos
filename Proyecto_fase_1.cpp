@@ -979,6 +979,16 @@ void obtenerFechaActual(char* buffer){
     sprintf(buffer, "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
 }
 
+void mostrarcliente(Cliente* cliente){
+    if(cliente == nullptr) return;
+    cout<<"ID: " << cliente->id << endl;
+    cout<<"Nombre: " << cliente->nombre << endl;
+    cout<<"Cédula/RIF: " << cliente->cedula << endl;
+    cout<<"Teléfono: " << cliente->telefono << endl;
+    cout<<"Email: " << cliente->email << endl;
+    cout<<"Dirección: " << cliente->direccion << endl;
+    cout<<"Fecha de Registro: " << cliente->fechaRegistro << endl;
+}
 
 bool validargantia(int garantia){
     return garantia > 0;
@@ -1035,13 +1045,14 @@ void inicializarTienda(Tienda* tienda, const char* nombre, const char* rif){
     tienda->siguienteIdCliente = 1;
     tienda->siguienteIdTransaccion = 1;
 }
-void liberarTienda(Tienda* tienda){
-    delete[] tienda->productos;
-    delete[] tienda->proveedores;
-    delete[] tienda->clientes;
-    delete[] tienda->transacciones;
-    delete tienda;
-    tienda = nullptr;
+void liberarTienda(Tienda** tienda){
+    if(tienda == nullptr || *tienda == nullptr) return;
+    delete[] (*tienda)->productos;
+    delete[] (*tienda)->proveedores;
+    delete[] (*tienda)->clientes;
+    delete[] (*tienda)->transacciones;
+    delete *tienda;
+    *tienda = nullptr;
 }
 
 
@@ -1434,11 +1445,184 @@ void eliminarProveedor(Tienda* tienda){
     }
 }
 // Funciones CRUD - CLIENTES
-void crearCliente(Tienda* tienda){}
-void buscarCliente(Tienda* tienda){}
-void actualizarCliente(Tienda* tienda){}
-void listarClientes(Tienda* tienda){}
-void eliminarCliente(Tienda* tienda){}
+void crearCliente(Tienda* tienda){
+    if(tienda==nullptr) return;
+    int id;
+    char nombre[100];
+    char cedula[20];
+    char telefono[20];
+    char email[100];
+    char direccion[200];
+    char buffer[11];
+    char respuesta;
+    cout << "Ingrese el nombre del cliente: ";
+    cin.getline(nombre, 100);
+    cout << "Ingrese la cedula o RIF del cliente: ";
+    while (rifDuplicado(tienda, cedula)) {
+        cout << "ERROR: La cédula/RIF '" << cedula << "' ya está registrado." << endl;
+        cout << "Ingrese nuevamente la cedula o rif: "<< endl;        cin.getline(cedula, 20);
+    }
+    cout << "Ingrese el teléfono del cliente: ";
+    cin.getline(telefono, 20);
+    cout << "Ingrese el email del cliente: ";
+    while(!validarEmail(email)) {
+        cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+        cin.getline(email, 100);
+    }
+    cout << "Ingrese la dirección del cliente: ";
+    cin.getline(direccion, 200);
+    cout << "Resumen del cliente a registrar:" << endl;
+    cout << "Nombre: " << nombre << endl;
+    cout << "Cédula/RIF: " << cedula << endl;
+    cout << "Teléfono: " << telefono << endl;
+    cout << "Email: " << email << endl;
+    cout << "Dirección: " << direccion << endl;
+    obtenerFechaActual(buffer);
+    cout <<"Fecha de registro: "<<buffer<<endl;
+    cout << "¿Desea guardar al cliente? (S/N): ";
+    cin >> respuesta;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    if (respuesta == 'S' || respuesta == 's') {
+        if (tienda->numClientes >= tienda->capacidadClientes) {
+            redimensionarClientes(tienda);
+        }
+        tienda->clientes[tienda->numClientes].id = tienda->siguienteIdCliente++;
+        strcpy(tienda->clientes[tienda->numClientes].nombre, nombre);
+        strcpy(tienda->clientes[tienda->numClientes].cedula, cedula);
+        strcpy(tienda->clientes[tienda->numClientes].telefono, telefono);
+        strcpy(tienda->clientes[tienda->numClientes].email, email);
+        strcpy(tienda->clientes[tienda->numClientes].direccion, direccion);
+        strcpy(tienda->clientes[tienda->numClientes].fechaRegistro, buffer);
+        tienda->numClientes++;
+    }
+}
+void buscarCliente(Tienda* tienda){
+    if(tienda==nullptr) return;
+    int id;
+    cout << "Ingrese el ID del cliente a buscar: ";
+    cin >> id;
+    int i = buscarClientePorId(tienda, id);
+    while(i == tienda->numClientes) {
+        cout << "Cliente no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarClientePorId(tienda, id);
+    }
+    mostrarcliente(&tienda->clientes[i]);
+}
+void actualizarCliente(Tienda* tienda){
+    if(tienda==nullptr) return;
+    int id;
+    cout << "Ingrese el ID del cliente a buscar: ";
+    cin >> id;
+    int i = buscarClientePorId(tienda, id);
+    while(i == tienda->numClientes) {
+        cout << "Cliente no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarClientePorId(tienda, id);
+    }
+    char nombre[100];
+    char cedula[20];
+    char telefono[20];
+    char email[100];
+    char direccion[200];
+    bool flag = true;
+    do{
+    cout << "Que desea editar?"<< endl;
+    cout << "1. Nombre" << endl;
+    cout << "2. RIF" << endl;
+    cout << "3. Teléfono" << endl;
+    cout << "4. Email" << endl;
+    cout << "5. Dirección" << endl;
+    cout << "0. Cancelar edición" << endl;
+    cout << "Seleccione una opción: ";
+    int opcion;
+    cin >> opcion;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    switch(opcion){
+        case 1:
+            cout << "Ingrese el nuevo nombre: ";
+            cin.getline(nombre, 100);
+            strcpy(tienda->clientes[i].nombre, nombre);
+            break;
+        case 2:
+            cout << "Ingrese el nuevo RIF: ";
+            while (rifDuplicado(tienda, cedula)) {
+                cout << "ERROR: El RIF '" << cedula << "' ya está registrado." << endl;
+                cin.getline(cedula, 20);
+            }
+            strcpy(tienda->clientes[i].cedula, cedula);
+            break;
+        case 3:
+            cout << "Ingrese el nuevo teléfono: ";
+            cin.getline(telefono, 20);
+            strcpy(tienda->clientes[i].telefono, telefono);
+            break;
+        case 4:
+            cout << "Ingrese el nuevo email: ";
+                while(!validarEmail(email)) {
+                    cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+                    cin.getline(email, 100);
+                }
+                strcpy(tienda->clientes[i].email, email);
+                break;
+            case 5:
+                cout << "Ingrese la nueva dirección: ";
+                cin.getline(direccion, 200);
+            strcpy(tienda->clientes[i].direccion, direccion);
+            break;
+            case 0:
+                cout << "Edición cancelada." << endl;
+                flag = false;
+                return;
+            default:
+                cout << "Opción no válida. Intente nuevamente." << endl;
+            }
+        }while(flag);
+}
+void listarClientes(Tienda* tienda){
+    if(tienda==nullptr) return;
+    cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
+    cout << "║                         LISTADO DE CLIENTES                             ║" << endl;
+    cout << "╠════╦══════════════════╦══════════════╦══════════════╦════════╦════════╦══════╣" << endl;
+    cout << "║ ID ║     Nombre       ║  Cédula/RIF   ║  Teléfono     ║ Email  ║ Dirección      ║ Fecha Registro ║" << endl;
+    cout << "╠════╬══════════════════╬══════════════╬══════════════╬════════╬════════╬══════╣" << endl;
+    for (int i = 0; i < tienda->numClientes; i++) {
+        Cliente* c = &tienda->clientes[i];
+        cout << "║ " << setw(2) << c->id << " ";
+        cout << "║ " << setw(16) << c->nombre << " ";
+        cout << "║ " << setw(12) << c->cedula << " ";
+        cout << "║ " << setw(12) << c->telefono << " ";
+        cout << "║ " << setw(6) << c->email << " ";
+        cout << "║ " << setw(14) << c->direccion << " ";
+        cout <<"║ "<< setw(14) << c->fechaRegistro <<" ║"<< endl;
+        cout <<"║Total de clientes: "<<tienda->numClientes<<endl;
+        cout<< "╚════╩══════════════════╩══════════════╩══════════════╩════════╩════════╩══════╝" << endl;
+    }
+}
+void eliminarCliente(Tienda* tienda){
+        if(tienda==nullptr) return;
+        int id;
+        cout << "Ingrese el ID del cliente a eliminar: ";
+        cin >> id;
+        int i = buscarClientePorId(tienda, id);
+        while(i == tienda->numClientes) {
+            cout << "Cliente no encontrado. Ingrese un ID válido: ";
+            cin >> id;
+            i = buscarClientePorId(tienda, id);
+        }
+        cout << "Esta seguro de eliminar el cliente: " << tienda->clientes[i].nombre << "? (s/n): ";
+        char respuesta;
+        cin >> respuesta;
+        if (respuesta == 's' || respuesta == 'S') {
+            cout << "Iniciando eliminacion..." << endl;
+            for(int j = i; j < tienda->numClientes - 1; j++) {
+                tienda->clientes[j] = tienda->clientes[j + 1];
+            }
+            tienda->numClientes--;
+        }else{
+            cout << "Eliminación cancelada." << endl;
+        }
+}
 // Funciones de TRANSACCIONES
 void registrarCompra(Tienda* tienda){}
 void registrarVenta(Tienda* tienda){}
@@ -1450,12 +1634,8 @@ void cancelarTransaccion(Tienda* tienda){}
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     bool flag = true;
-    char nombreTienda[100];
-    char rifTienda[20];
-    cout << "Ingrese el nombre de la tienda: ";
-    cin.getline(nombreTienda, 100);
-    cout << "Ingrese el RIF de la tienda: ";
-    cin.getline(rifTienda, 20);
+    char nombreTienda[100] = "Tecnostore";
+    char rifTienda[20] = "J-123456789";
     Tienda* tienda = new Tienda;
     inicializarTienda(tienda, nombreTienda, rifTienda);
     int anchoInterno = 43; 
@@ -1476,20 +1656,95 @@ int main() {
         cin >> opcion;
         switch (opcion) {
             case 1:
-                cout << "Gestión de Productos seleccionada." << endl;
+                int submenuproducto;
+                do{
+                    submenuproducto = submenu_producto();
+                    switch(submenuproducto){
+                        case 1:
+                            crearProducto(tienda);
+                            break;
+                        case 2:
+                            buscarProducto(tienda);
+                            break;
+                        case 3:
+                            actualizarProducto(tienda);
+                            break;
+                        case 4:
+                            listarProductos(tienda);
+                            break;
+                        case 5:
+                            eliminarProducto(tienda);
+                            break;
+                        case 0:
+                            cout << "Volviendo al menú principal..." << endl;
+                            break;
+                        default:
+                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    }
+                } while(submenuproducto != 0);
                 break;
             case 2:
-                cout << "Gestión de Proveedores seleccionada." << endl;
+                int submenuProveedor;
+                do{
+                    submenuProveedor = submenu_proveedor();
+                    switch(submenuProveedor){
+                        case 1:
+                            crearProveedor(tienda);
+                            break;
+                        case 2:
+                            buscarProveedor(tienda);
+                            break;
+                        case 3:
+                            actualizarProveedor(tienda);
+                            break;
+                        case 4:
+                            listarProveedores(tienda);
+                            break;
+                        case 5:
+                            eliminarProveedor(tienda);
+                            break;
+                        case 0:
+                            cout << "Volviendo al menú principal..." << endl;
+                            break;
+                        default:
+                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    }
+                } while(submenuProveedor != 0);
                 break;
             case 3:
-                cout << "Gestión de Clientes seleccionada." << endl;
+                int submenuCliente;
+                do{
+                    submenuCliente = submenu_cliente();
+                    switch(submenuCliente){
+                        case 1:
+                            crearCliente(tienda);
+                            break;
+                        case 2:
+                            buscarCliente(tienda);
+                            break;
+                        case 3:
+                            actualizarCliente(tienda);
+                            break;
+                        case 4:
+                            listarClientes(tienda);
+                            break;
+                        case 5:
+                            eliminarCliente(tienda);
+                            break;
+                        case 0:
+                            cout << "Volviendo al menú principal..." << endl;
+                            break;
+                        default:
+                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    }
+                } while(submenuCliente != 0);
                 break;
             case 4:
                 cout << "Gestión de Transacciones seleccionada." << endl;
                 break;
             case 5:
                 cout << "Saliendo del programa." << endl;
-                liberarTienda(tienda);
+                liberarTienda(&tienda);
                 flag = false;
                 return 0;
             default:
