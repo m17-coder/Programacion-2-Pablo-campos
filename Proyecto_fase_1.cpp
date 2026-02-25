@@ -809,7 +809,7 @@ struct Producto {
     float precio;              // Precio unitario
     int stock;                 // Cantidad en inventario
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
-    char fecha_vencimiento[11]; // Formato: YYYY-MM-DD
+    int garantia;
 };
 
 struct Proveedor {
@@ -979,16 +979,10 @@ void obtenerFechaActual(char* buffer){
     sprintf(buffer, "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
 }
 
-bool validarfechavencimiento(const char* fecha_vencimiento){
-    if (fecha_vencimiento == nullptr) return false;
-    char* fechaActual = new char[11];
-    obtenerFechaActual(fechaActual);
-    if(strlen(fecha_vencimiento) != 10) return false; // Verificar formato YYYY-MM-DD
-    bool esValida = strcmp(fecha_vencimiento, fechaActual) > 0; // La fecha de vencimiento debe ser posterior a la fecha actual
-    delete[] fechaActual;
-    return esValida;
-}
 
+bool validargantia(int garantia){
+    return garantia > 0;
+}
 
 bool codigoDuplicado(Tienda* tienda, const char* codigo){
     if(tienda == nullptr || codigo == nullptr) return false;
@@ -1103,7 +1097,7 @@ bool validarEmail(const char* email){
 bool existeProducto(Tienda* tienda, int id){
     if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProductos; i++) {
-        if (tienda->productos[i].id == id) {
+        if (tienda->productos[i].idProveedor == id) {
             return true;
         }
     }
@@ -1336,18 +1330,20 @@ void actualizarProveedor(Tienda* tienda){
     char telefono[20];
     char email[100];
     char direccion[200];
-
+    bool flag = true;
+    do{
     cout << "Que desea editar?"<< endl;
     cout << "1. Nombre" << endl;
     cout << "2. RIF" << endl;
     cout << "3. Teléfono" << endl;
     cout << "4. Email" << endl;
     cout << "5. Dirección" << endl;
+    cout << "0. Cancelar edición" << endl;
     cout << "Seleccione una opción: ";
     int opcion;
     cin >> opcion;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    switch (opcion) {
+    switch(opcion){
         case 1:
             cout << "Ingrese el nuevo nombre: ";
             cin.getline(nombre, 100);
@@ -1368,21 +1364,27 @@ void actualizarProveedor(Tienda* tienda){
             break;
         case 4:
             cout << "Ingrese el nuevo email: ";
-            while(!validarEmail(email)) {
-                cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
-                cin.getline(email, 100);
-            }
-            strcpy(tienda->proveedores[i].email, email);
-            break;
-        case 5:
-            cout << "Ingrese la nueva dirección: ";
-            cin.getline(direccion, 200);
+                while(!validarEmail(email)) {
+                    cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+                    cin.getline(email, 100);
+                }
+                strcpy(tienda->proveedores[i].email, email);
+                break;
+            case 5:
+                cout << "Ingrese la nueva dirección: ";
+                cin.getline(direccion, 200);
             strcpy(tienda->proveedores[i].direccion, direccion);
             break;
-        default:
-            cout << "Opción inválida. No se realizaron cambios." << endl;
+            case 0:
+                cout << "Edición cancelada." << endl;
+                flag = false;
+                return;
+            default:
+                cout << "Opción no válida. Intente nuevamente." << endl;
+            }
+        }while(flag);
     }
-}
+
 void listarProveedores(Tienda* tienda){
     if(tienda == nullptr) return;
     cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
@@ -1415,19 +1417,21 @@ void eliminarProveedor(Tienda* tienda){
         i = buscarProveedorPorId(tienda, id);
     }
     if (existeProducto(tienda, id)) {
-        cout << "Esta seguro de eliminar el proveedor con ID " << id << "? (s/n): ";
-        char respuesta;
-        cin >> respuesta;
-        if (respuesta != 's' && respuesta != 'S') {
-            cout << "Iniciando eliminacion..." << endl;
+        cout << "ADVERTENCIA: Este proveedor tiene productos asociados. NO SE PUEDE ELIMINAR." << endl;
+        return;
+    }
+    cout << "Esta seguro de eliminar el proveedor con ID " << id << "? (s/n): ";
+    char respuesta;
+    cin >> respuesta;
+    if (respuesta == 's' || respuesta == 'S') {
+        cout << "Iniciando eliminacion..." << endl;
+        for(int j = i; j < tienda->numProveedores - 1; j++) {
+            tienda->proveedores[j] = tienda->proveedores[j + 1];
         }
+        tienda->numProveedores--;
+    }else{
+        cout << "Eliminación cancelada." << endl;
     }
-    
-    for(int j = i; j < tienda->numProveedores - 1; j++) {
-        tienda->proveedores[j] = tienda->proveedores[j + 1];
-    }
-    tienda->numProveedores--;
-
 }
 // Funciones CRUD - CLIENTES
 void crearCliente(Tienda* tienda){}
