@@ -1257,11 +1257,90 @@ void crearProducto(Tienda* tienda){
     }
 }
 void buscarProducto(Tienda* tienda){
+    if(tienda==nullptr) return;
+    int numResultados = 0;
+    char nombre[100];
+    cout<<"ingrese nombre del producto a buscar: "<<endl;
+    cin.getline(nombre,100);
+    int* indices = buscarProductosPorNombre(tienda, nombre, &numResultados);
+    if(numResultados == 0){
+        cout << "No se encontraron productos con ese nombre." << endl;
+    } else {
+        cout << "Productos encontrados:" << endl;
+        for(int i = 0; i < numResultados; i++){
+            Producto* prod = &tienda->productos[indices[i]];
+            cout << "ID: " << prod->id << ", Nombre: " << prod->nombre << ", Código: " << prod->codigo << endl;
+        }
+    }
+    delete[] indices;
 }
-void actualizarProducto(Tienda* tienda){}
+void actualizarProducto(Tienda* tienda){ 
+    if(tienda == nullptr) return;
+    
+      
+}
 void actualizarStockProducto(Tienda* tienda){}
-void listarProductos(Tienda* tienda){}
-void eliminarProducto(Tienda* tienda){}
+void listarProductos(Tienda* tienda){
+    if(tienda == nullptr) return;
+    cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
+    cout << "║                         LISTADO DE PRODUCTOS                             ║" << endl;
+    cout << "╠════╦═══════════╦══════════════════╦══════════════╦═══════╦════════╦══════╣" << endl;
+    cout << "║ " << setw(2) << "ID" 
+         << " ║ " << setw(10) << "Código"
+         << " ║ " << setw(16) << "Nombre"
+         << " ║ " << setw(12) << "Proveedor"
+         << " ║ " << setw(7) << "Precio"
+         << " ║ " << setw(6) << "Stock"
+         << " ║ " << setw(10) << "Fecha"
+         << " ║" << endl;
+    cout << "╠════╬═══════════╬══════════════════╬══════════════╬═══════╬════════╬══════╣" << endl;
+    for (int i = 0; i < tienda->numProductos; i++) {
+        Producto* prod = &tienda->productos[i];
+        Proveedor* prov = nullptr;
+        for (int j = 0; j < tienda->numProveedores; j++) {
+            if (tienda->proveedores[j].id == prod->idProveedor) {
+                prov = &tienda->proveedores[j];
+                break;
+            }
+        }
+        cout << "║ " << setw(2) << prod->id
+             << " ║ " << setw(10) << prod->codigo
+             << " ║ " << setw(16) << prod->nombre
+             << " ║ " << setw(12) << (prov ? prov->nombre : "Desconocido")
+             << " ║ " << setw(7) << fixed << setprecision(2) << prod->precio
+             << " ║ " << setw(6) << prod->stock
+             << " ║ " << setw(10) << prod->fechaRegistro
+             << " ║" << endl;
+    }
+    cout << "╚════╩═══════════╩══════════════════╩══════════════╩═══════╩════════╩══════╝" << endl;
+    cout << "Total de productos: " << tienda->numProductos << endl;
+}
+
+void eliminarProducto(Tienda* tienda){
+        if(tienda == nullptr) return;
+        int id;
+        cout << "Ingrese el ID del producto a eliminar: ";
+        cin >> id;
+        int i = buscarProductoPorId(tienda, id);
+        while(i == tienda->numProductos) {
+            cout << "Producto no encontrado. Ingrese un ID válido: ";
+            cin >> id;
+            i = buscarProductoPorId(tienda, id);
+        }
+        char respuesta;
+        cout << "¿Confirma que desea eliminar el producto '" << tienda->productos[i].nombre << "'? (S/N): ";
+        cin >> respuesta;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        if (respuesta == 'S' || respuesta == 's') {
+            for (int j = i; j < tienda->numProductos - 1; j++) {
+                tienda->productos[j] = tienda->productos[j + 1];
+            }
+            tienda->numProductos--;
+            cout << "Producto eliminado exitosamente." << endl;
+        } else {
+            cout << "Eliminación cancelada." << endl;
+        }
+}
 // Funciones CRUD - PROVEEDORES
 void crearProveedor(Tienda* tienda){
     char nombre[100];
@@ -1624,8 +1703,13 @@ void eliminarCliente(Tienda* tienda){
         }
 }
 // Funciones de TRANSACCIONES
-void registrarCompra(Tienda* tienda){}
-void registrarVenta(Tienda* tienda){}
+void registrarCompra(Tienda* tienda){
+    if(tienda == nullptr) return;
+
+}
+void registrarVenta(Tienda* tienda){
+
+}
 void buscarTransacciones(Tienda* tienda){}
 void listarTransacciones(Tienda* tienda){}
 void cancelarTransaccion(Tienda* tienda){}
