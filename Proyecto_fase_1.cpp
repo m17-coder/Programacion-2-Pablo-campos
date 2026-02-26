@@ -833,8 +833,7 @@ struct Cliente {
 };
 
 struct Transaccion {
-    int id;                    // Identificador único (autoincremental)
-    char tipo[10];             // "COMPRA" o "VENTA"
+    int id;                    // Identificador único (autoincremental)           // "COMPRA" o "VENTA"
     int idProducto;            // ID del producto involucrado
     int idRelacionado;         // ID del proveedor (compra) o cliente (venta)
     int cantidad;              // Cantidad de unidades
@@ -1276,10 +1275,87 @@ void buscarProducto(Tienda* tienda){
 }
 void actualizarProducto(Tienda* tienda){ 
     if(tienda == nullptr) return;
-    
+    int id;
+    cout << "Ingrese el ID del producto a actualizar: ";
+    cin >> id;
+    int i = buscarProductoPorId(tienda, id);
+    while(i == tienda->numProductos) {
+        cout << "Producto no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarProductoPorId(tienda, id);
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        char nombre[100];
+        char descripcion[200];
+        float precio;
+        char buffer[11];
+        int garantia;
+        int respuesta;
+        bool flag = true;
+        do{
+            cout << "Que cambio desea hacer?" << endl;
+            cout << "1. Cambiar nombre" << endl;
+            cout << "2. Cambiar descripción" << endl;
+            cout << "3. Cambiar precio" << endl;
+            cout << "4. Cambiar garantía" << endl;
+            cout << "0. Salir" << endl;
+            cin >> respuesta;
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            switch(respuesta){
+                case 1:
+                    cout << "Ingrese el nuevo nombre: ";
+                    cin.getline(nombre, 100);
+                    strcpy(tienda->productos[i].nombre, nombre);
+                    break;
+                case 2:
+                    cout << "Ingrese la nueva descripción: ";
+                    cin.getline(descripcion, 200);
+                    strcpy(tienda->productos[i].descripcion, descripcion);
+                    break;
+                case 3:
+                    do{
+                        cout << "Ingrese el nuevo precio: ";
+                        cin >> precio;
+                    } while(precio < 0);
+                    tienda->productos[i].precio = precio;
+                    break;
+                case 4:
+                    do{
+                        cout << "Ingrese la nueva garantía (en meses): ";
+                        cin >> garantia;
+                    } while(!validargantia(garantia));
+                    tienda->productos[i].garantia = garantia;
+                    break;
+                case 0:
+                    cout << "Actualización finalizada." << endl;
+                    flag = false;
+                    break;
+                default:
+                    cout << "Opción no válida. Intente nuevamente." << endl;
+            }
+        } while(flag);
       
 }
-void actualizarStockProducto(Tienda* tienda){}
+void actualizarStockProducto(Tienda* tienda){
+    if(tienda == nullptr) return;
+    int id;
+    cout << "Ingrese el ID del producto para actualizar stock: ";
+    cin >> id;
+    int i = buscarProductoPorId(tienda, id);
+    while(i == tienda->numProductos) {
+        cout << "Producto no encontrado. Ingrese un ID válido: ";
+        cin >> id;
+        i = buscarProductoPorId(tienda, id);
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    int nuevoStock;
+    do{
+        cout << "Ingrese el nuevo stock: ";
+        cin >> nuevoStock;
+    } while(nuevoStock < 0);
+    tienda->productos[i].stock = nuevoStock;
+     cout << "Stock actualizado exitosamente." << endl;
+}
 void listarProductos(Tienda* tienda){
     if(tienda == nullptr) return;
     cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
@@ -1705,6 +1781,44 @@ void eliminarCliente(Tienda* tienda){
 // Funciones de TRANSACCIONES
 void registrarCompra(Tienda* tienda){
     if(tienda == nullptr) return;
+    int idProducto;
+    int cantidad;
+    char buffer[11];
+    int idProveedor;
+    float precioUnitario;
+    float total;
+    int respuesta;
+    cout << "Ingrese el ID del producto a comprar: ";
+    cin >> idProducto;
+    int i = buscarProductoPorId(tienda, idProducto);
+    while(i == tienda->numProductos) {
+        cout << "Producto no encontrado. Ingrese un ID válido: ";
+        cin >> idProducto;
+        i = buscarProductoPorId(tienda, idProducto);
+    }
+    cout << "Ingrese la cantidad a comprar: ";
+    cin >> cantidad;
+    while(cantidad <= 0) {
+        cout << "Cantidad inválida. Ingrese una cantidad mayor a 0: ";
+        cin >> cantidad;
+    }
+    idProveedor = tienda->productos[i].idProveedor;
+    Proveedor* prov = nullptr;
+    for (int j = 0; j < tienda->numProveedores; j++) {
+        if (tienda->proveedores[j].id == idProveedor) {
+            prov = &tienda->proveedores[j];
+            break;
+        }
+    }
+    precioUnitario = tienda->productos[i].precio;
+    total = precioUnitario * cantidad;
+    obtenerFechaActual(buffer);
+    cout << "Resumen de la compra:" << endl;
+    cout << "Producto: " << tienda->productos[i].nombre << endl;
+    cout << "Proveedor: " << (prov ? prov->nombre : "Desconocido") << endl;
+
+
+
 
 }
 void registrarVenta(Tienda* tienda){
