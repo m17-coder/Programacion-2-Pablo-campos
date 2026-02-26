@@ -1779,8 +1779,10 @@ void eliminarCliente(Tienda* tienda){
         }
 }
 // Funciones de TRANSACCIONES
+// … código anterior …
 void registrarCompra(Tienda* tienda){
     if(tienda == nullptr) return;
+    int id;
     int idProducto;
     int cantidad;
     char buffer[11];
@@ -1808,23 +1810,100 @@ void registrarCompra(Tienda* tienda){
         if (tienda->proveedores[j].id == idProveedor) {
             prov = &tienda->proveedores[j];
             break;
+
         }
     }
     precioUnitario = tienda->productos[i].precio;
     total = precioUnitario * cantidad;
     obtenerFechaActual(buffer);
     cout << "Resumen de la compra:" << endl;
+    cout << "id de la compra: " << tienda->siguienteIdTransaccion << endl;
     cout << "Producto: " << tienda->productos[i].nombre << endl;
-    cout << "Proveedor: " << (prov ? prov->nombre : "Desconocido") << endl;
-
-
-
-
+    cout << "Proveedor: " << prov->nombre << endl;
+    cout << "Precio Unitario: " << precioUnitario << endl;
+    cout << "Cantidad: " << cantidad << endl;
+    cout << "Total: " << total << endl;
+    cout << "Fecha de compra: " << buffer << endl;
+        cout << "¿Registrar compra? (S/N): ";
+    cin >> respuesta;
+    if (respuesta == 'S' || respuesta == 's') {
+        tienda->productos[i].stock += cantidad;
+        cout << "Compra registrada exitosamente. Stock actualizado." << endl;
+    } else {
+        cout << "Registro de compra cancelado." << endl;
+    }
 }
 void registrarVenta(Tienda* tienda){
+    if(tienda == nullptr) return; 
+    int idProducto;
+    int cantidad;
+    char buffer[11];
+    int idCliente;
+    float precioUnitario;
+    float total;
+    bool flag = true;
+    int respuesta;
+    cout << "Ingrese el ID del producto a vender: ";
+    cin >> idProducto;
+    int i = buscarProductoPorId(tienda, idProducto);
+    while(i == tienda->numProductos) {
+        cout << "Producto no encontrado. Ingrese un ID válido: ";
+        cin >> idProducto;
+        i = buscarProductoPorId(tienda, idProducto);
+    }
+    cout << "Ingrese la cantidad a vender: ";
+    cin >> cantidad;
+    while(cantidad <= 0 || cantidad > tienda->productos[i].stock) {
+        cout << "Cantidad inválida. Ingrese una cantidad mayor a 0 y menor o igual al stock disponible (" << tienda->productos[i].stock << "): ";
+        cin >> cantidad;
+    }
+    cout << "Ingrese el ID del cliente: ";
+    cin >> idCliente;
+    do{
+        int j = buscarClientePorId(tienda, idCliente);
+        if(j == tienda->numClientes) {
+            cout << "Cliente no encontrado. Ingrese un ID válido: ";
+            cin >> idCliente;
+        } else {
+            flag = false;
+            break;
+        }
+    }while(flag);
+    Cliente* clienteEncontrado = nullptr;
+    for(int k = 0; k < tienda->numClientes; k++) {
+        if(tienda->clientes[k].id == idCliente) {
+            clienteEncontrado = &tienda->clientes[k];
+            break;
+        }
+    }
+    precioUnitario = tienda->productos[i].precio;
+    total = precioUnitario * cantidad;
+    obtenerFechaActual(buffer);
+    cout << "Resumen de la venta:" << endl;
+    cout << "Producto: " << tienda->productos[i].nombre << endl;
+    cout << "Cliente: " << clienteEncontrado->nombre << endl;
+    cout << "Precio Unitario: " << precioUnitario << endl;
+    cout << "Cantidad: " << cantidad << endl;
+    cout << "Total: " << total << endl;
+    cout << "Fecha de venta: " << buffer << endl;
+    cout << "¿Registrar venta? (S/N): ";
+    cin >> respuesta;
+    if (respuesta == 'S' || respuesta == 's') {
+        tienda->productos[i].stock -= cantidad;
+        cout << "Venta registrada exitosamente. Stock actualizado." << endl;
+    } else {
+        cout << "Registro de venta cancelado." << endl;
+    }
+    
+
+    
 
 }
-void buscarTransacciones(Tienda* tienda){}
+void buscarTransacciones(Tienda* tienda){
+        if(tienda == nullptr) return;
+        cout << "Función de búsqueda de transacciones aún no implementada." << endl;
+
+}
 void listarTransacciones(Tienda* tienda){}
 void cancelarTransaccion(Tienda* tienda){}
 // Funciones Auxiliares
