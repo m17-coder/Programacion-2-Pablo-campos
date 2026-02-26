@@ -837,7 +837,7 @@ struct Cliente {
     char telefono[20];         // Teléfono de contacto
     char email[100];           // Correo electrónico
     char direccion[200];       // Dirección física
-    bool activa;               // Indica si el cliente está activo o inactivo
+    bool activo;               // Indica si el cliente está activo o inactivo
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
 };
 
@@ -850,6 +850,8 @@ struct Transaccion {
     float total;               // cantidad * precioUnitario
     char fecha[11];            // Formato: YYYY-MM-DD
     char descripcion[200];
+    char tipo;                 // 'C' para compra, 'V' para venta
+    bool cancelada;            // Indica si la transacción ha sido cancelada
 };
 
 struct Tienda {
@@ -1149,7 +1151,16 @@ bool existeProducto(Tienda* tienda, int id){
     return false;
 }
 
-
+int buscartransaccionPorId(Tienda* tienda, int id){
+    if(tienda == nullptr) return tienda->numTransacciones;
+    for (int i = 0; i < tienda->numTransacciones; i++) {
+        if (tienda->transacciones[i].id == id && tienda->transacciones[i].cancelada == false) {
+            return i; // Retorna
+        }
+    }
+        cout << "Transacción no encontrada." << endl;
+        return tienda->numTransacciones; // Retorna un valor fuera de rango para indicar no encontrado
+}
 bool rifDuplicado(Tienda* tienda, const char* rif){
     if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProveedores; i++) {
@@ -1167,7 +1178,7 @@ bool rifDuplicado(Tienda* tienda, const char* rif){
 int buscarProductoPorId(Tienda* tienda, int id){
     if(tienda == nullptr) return tienda->numProductos;
     for (int i = 0; i < tienda->numProductos; i++) {
-        if (tienda->productos[i].id == id) {
+        if (tienda->productos[i].id == id && tienda->productos[i].activo) {
             return i; // Retorna el índice del producto encontrado
         }
     }
@@ -1177,7 +1188,7 @@ int buscarProductoPorId(Tienda* tienda, int id){
 int buscarProveedorPorId(Tienda* tienda, int id){
     if(tienda == nullptr) return tienda->numProveedores;
     for (int i = 0; i < tienda->numProveedores; i++) {
-        if (tienda->proveedores[i].id == id) {
+        if (tienda->proveedores[i].id == id && tienda->proveedores[i].activo) {
             return i; // Retorna el índice del proveedor encontrado
         }
     }
@@ -1187,7 +1198,7 @@ int buscarProveedorPorId(Tienda* tienda, int id){
 int buscarClientePorId(Tienda* tienda, int id){
     if(tienda == nullptr) return tienda->numClientes;
     for (int i = 0; i < tienda->numClientes; i++) {
-        if (tienda->clientes[i].id == id) {
+        if (tienda->clientes[i].id == id && tienda->clientes[i].activo) {
             return i; // Retorna el índice del cliente encontrado
         }
     }
@@ -1309,8 +1320,10 @@ void buscarProducto(Tienda* tienda){
         if (numResultados > 0) {
             cout << "Productos encontrados: " << numResultados << endl;
             for (int i = 0; i < numResultados; i++) {
-                mostrarProducto(&tienda->productos[indices[i]], tienda);
-                cout << "-----------------------------" << endl;
+                if(tienda->productos[indices[i]].activo) {
+                    mostrarProducto(&tienda->productos[indices[i]], tienda);
+                    cout << "-----------------------------" << endl;
+                }
             }
         } else {
             cout << "No se encontraron productos con ese nombre." << endl;
@@ -1401,6 +1414,32 @@ void actualizarProducto(Tienda* tienda){
         } while(flag);
       
 }
+void actualizarStock(Tienda* tienda) {
+    if (tienda == nullptr) return;
+    int id;
+    cout << "Ingrese el ID del producto para actualizar stock: ";
+    cin >> id;
+    // Esta función ahora solo devolverá un índice válido si el producto existe Y está activo
+    int i = buscarProductoPorId(tienda, id);
+    while (i == tienda->numProductos) {
+        cout << "Producto no encontrado o inactivo. Ingrese un ID válido (0 para cancelar): ";
+        cin >> id;
+        if (id == 0) return; // Opción de escape
+        i = buscarProductoPorId(tienda, id);
+    }
+    int cambio;
+    cout << "Stock actual de '" << tienda->productos[i].nombre << "': " << tienda->productos[i].stock << endl;
+    cout << "Ingrese la cantidad a añadir (positivo) o retirar (negativo): ";
+    cin >> cambio;
+    vaciarBuffer();
+    // Validación para no tener stock negativo
+    if (tienda->productos[i].stock + cambio < 0) {
+        cout << "Error: No hay suficiente stock para realizar esa operación." << endl;
+    } else {
+        tienda->productos[i].stock += cambio;
+        cout << "Stock actualizado exitosamente. Nuevo stock: " << tienda->productos[i].stock << endl;
+    }
+}
 void listarProductos(Tienda* tienda){
     if(tienda == nullptr) return;
     
@@ -1460,7 +1499,6 @@ void listarProductos(Tienda* tienda){
     
     cout << "Total de productos activos: " << contadorActivos << endl;
 }
-
 void eliminarProducto(Tienda* tienda) {
     if (tienda == nullptr || tienda->numProductos == 0) {
         cout << "No hay productos registrados para eliminar." << endl;
@@ -1543,6 +1581,7 @@ void crearProveedor(Tienda* tienda){
         strcpy(tienda->proveedores[tienda->numProveedores].telefono, telefono);
         strcpy(tienda->proveedores[tienda->numProveedores].email, email);
         strcpy(tienda->proveedores[tienda->numProveedores].direccion, direccion);
+        tienda->proveedores[tienda->numProveedores].activo = true;
         tienda->numProveedores++;
     }
 
@@ -1630,9 +1669,9 @@ void actualizarProveedor(Tienda* tienda){
             }
         }while(flag);
     }
-
 void listarProveedores(Tienda* tienda){
     if(tienda == nullptr) return;
+    int contadoractivos = 0;
     cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
     cout << "║                         LISTADO DE PROVEEDORES                             ║" << endl;
     cout << "╠════╦══════════════════╦══════════════╦══════════════╦════════╦════════╦══════╣" << endl;
@@ -1640,6 +1679,8 @@ void listarProveedores(Tienda* tienda){
     cout << "╠════╬══════════════════╬══════════════╬══════════════╬════════╬════════╬══════╣" << endl;
     for (int i = 0; i < tienda->numProveedores; i++) {
         Proveedor* p = &tienda->proveedores[i];
+        if(!p->activo) continue; // Saltear proveedores inactivos
+        contadoractivos++;
         cout << "║ " << setw(2) << p->id << " ";
         cout << "║ " << setw(16) << p->nombre << " ";
         cout << "║ " << setw(12) << p->rif << " ";
@@ -1651,31 +1692,35 @@ void listarProveedores(Tienda* tienda){
     cout << "╚════╩══════════════════╩══════════════╩══════════════╩════════╩════════╩══════╝" << endl;
     cout <<"Total de proveedores: "<<tienda->numProveedores<<endl;
 }
-void eliminarProveedor(Tienda* tienda){
+void eliminarProveedor(Tienda* tienda) {
     if(tienda == nullptr) return;
     int id;
     cout << "Ingrese el ID del proveedor a eliminar: ";
     cin >> id;
-    int i = buscarProveedorPorId(tienda, id);
+
+    int i = buscarProveedorPorId(tienda, id); // Usa la búsqueda filtrada
     while(i == tienda->numProveedores) {
-        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cout << "Proveedor no encontrado o ya inactivo. Ingrese un ID válido: ";
         cin >> id;
         i = buscarProveedorPorId(tienda, id);
     }
+
+    // Validación de integridad: No eliminar si tiene productos (aunque sea lógico)
     if (existeProducto(tienda, id)) {
         cout << "ADVERTENCIA: Este proveedor tiene productos asociados. NO SE PUEDE ELIMINAR." << endl;
         return;
     }
-    cout << "Esta seguro de eliminar el proveedor con ID " << id << "? (s/n): ";
+
+    cout << "¿Está seguro de eliminar al proveedor '" << tienda->proveedores[i].nombre << "'? (S/N): ";
     char respuesta;
     cin >> respuesta;
+    vaciarBuffer();
+
     if (respuesta == 's' || respuesta == 'S') {
-        cout << "Iniciando eliminacion..." << endl;
-        for(int j = i; j < tienda->numProveedores - 1; j++) {
-            tienda->proveedores[j] = tienda->proveedores[j + 1];
-        }
-        tienda->numProveedores--;
-    }else{
+        // CAMBIO: Eliminación lógica en lugar del ciclo for
+        tienda->proveedores[i].activo = false; 
+        cout << "Proveedor marcado como inactivo exitosamente." << endl;
+    } else {
         cout << "Eliminación cancelada." << endl;
     }
 }
@@ -1728,6 +1773,7 @@ void crearCliente(Tienda* tienda){
         strcpy(tienda->clientes[tienda->numClientes].email, email);
         strcpy(tienda->clientes[tienda->numClientes].direccion, direccion);
         strcpy(tienda->clientes[tienda->numClientes].fechaRegistro, buffer);
+        tienda->clientes[tienda->numClientes].activo = true;
         tienda->numClientes++;
     }
 }
@@ -1816,6 +1862,7 @@ void actualizarCliente(Tienda* tienda){
 }
 void listarClientes(Tienda* tienda){
     if(tienda==nullptr) return;
+    int contadoractivos = 0;
     cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
     cout << "║                         LISTADO DE CLIENTES                             ║" << endl;
     cout << "╠════╦══════════════════╦══════════════╦══════════════╦════════╦════════╦══════╣" << endl;
@@ -1823,6 +1870,8 @@ void listarClientes(Tienda* tienda){
     cout << "╠════╬══════════════════╬══════════════╬══════════════╬════════╬════════╬══════╣" << endl;
     for (int i = 0; i < tienda->numClientes; i++) {
         Cliente* c = &tienda->clientes[i];
+        if(!c->activo) continue; // Saltear clientes inactivos
+        contadoractivos++;
         cout << "║ " << setw(2) << c->id << " ";
         cout << "║ " << setw(16) << c->nombre << " ";
         cout << "║ " << setw(12) << c->cedula << " ";
@@ -1848,12 +1897,12 @@ void eliminarCliente(Tienda* tienda){
         cout << "Esta seguro de eliminar el cliente: " << tienda->clientes[i].nombre << "? (s/n): ";
         char respuesta;
         cin >> respuesta;
+        vaciarBuffer();
         if (respuesta == 's' || respuesta == 'S') {
             cout << "Iniciando eliminacion..." << endl;
-            for(int j = i; j < tienda->numClientes - 1; j++) {
-                tienda->clientes[j] = tienda->clientes[j + 1];
-            }
-            tienda->numClientes--;
+            // Eliminación lógica: Solo marcamos como inactivo, no movemos el arreglo
+            tienda->clientes[i].activo = false; 
+            cout << "Cliente marcado como inactivo exitosamente." << endl;
         }else{
             cout << "Eliminación cancelada." << endl;
         }
@@ -1980,8 +2029,52 @@ void buscarTransacciones(Tienda* tienda){
         cout << "Función de búsqueda de transacciones aún no implementada." << endl;
 
 }
-void listarTransacciones(Tienda* tienda){}
-void cancelarTransaccion(Tienda* tienda){}
+void listarTransacciones(Tienda* tienda){
+
+}
+void cancelarTransaccion(Tienda* tienda) {
+    if (tienda == nullptr || tienda->numTransacciones == 0) {
+        cout << "No hay transacciones registradas." << endl;
+        return;
+    }
+
+    int id;
+    cout << "Ingrese ID de transacción a anular: ";
+    cin >> id;
+
+    // Buscamos el índice
+    int i = buscartransaccionPorId(tienda, id);
+
+    // Verificamos que exista y que no esté ya cancelada
+    if (i != tienda->numTransacciones && tienda->transacciones[i].cancelada == false) {
+        
+        // 1. Buscamos el producto asociado para devolver/quitar stock
+        int idxProd = buscarProductoPorId(tienda, tienda->transacciones[i].idProducto);
+        
+        if (idxProd != tienda->numProductos) {
+            // 2. REVERTIR EL STOCK
+            // Si era una VENTA (salida), devolvemos el stock sumando
+            // Si era una COMPRA (entrada), restamos del stock
+            // NOTA: Aquí asumo que usas un campo 'tipo' (V para venta, C para compra)
+            if (tienda->transacciones[i].tipo == 'V') {
+                tienda->productos[idxProd].stock += tienda->transacciones[i].cantidad;
+            } else if (tienda->transacciones[i].tipo == 'C') {
+                tienda->productos[idxProd].stock -= tienda->transacciones[i].cantidad;
+            }
+
+            // 3. MARCAR COMO CANCELADA (Eliminación lógica)
+            tienda->transacciones[i].cancelada = true; 
+            
+            cout << "Transacción #" << id << " anulada correctamente." << endl;
+            cout << "El stock del producto '" << tienda->productos[idxProd].nombre 
+                 << "' ha sido restaurado." << endl;
+        } else {
+            cout << "Error: No se pudo ajustar el stock porque el producto ya no existe." << endl;
+        }
+    } else {
+        cout << "Error: Transacción no encontrada o ya está anulada." << endl;
+    }
+}
 // Funciones Auxiliares
 
 int main() {
