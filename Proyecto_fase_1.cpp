@@ -491,6 +491,12 @@ void convertirAMinusculas(char* cadena);
 bool contieneSubstring(const char* texto, const char* busqueda);
 ```
 
+void vaciarBuffer() {
+    if (cin.fail()) {
+        cin.clear(); // Limpia los flags de error de cin
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
 ---
 
 ### 3. ESTRUCTURA DE MENÚS
@@ -810,6 +816,7 @@ struct Producto {
     int stock;                 // Cantidad en inventario
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
     int garantia;
+    bool activo;               // Indica si el producto está activo o inactivo (no eliminado físicamente)
 };
 
 struct Proveedor {
@@ -820,6 +827,7 @@ struct Proveedor {
     char email[100];           // Correo electrónico
     char direccion[200];       // Dirección física
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
+    bool activo;               // Indica si el proveedor está activo o inactivo
 };
 
 struct Cliente {
@@ -829,6 +837,7 @@ struct Cliente {
     char telefono[20];         // Teléfono de contacto
     char email[100];           // Correo electrónico
     char direccion[200];       // Dirección física
+    bool activa;               // Indica si el cliente está activo o inactivo
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
 };
 
@@ -840,7 +849,7 @@ struct Transaccion {
     float precioUnitario;      // Precio por unidad en esta transacción
     float total;               // cantidad * precioUnitario
     char fecha[11];            // Formato: YYYY-MM-DD
-    char descripcion[200];     // Notas adicionales (opcional)
+    char descripcion[200];
 };
 
 struct Tienda {
@@ -872,7 +881,12 @@ struct Tienda {
 };
 // Crea la tienda con arreglos dinamicos
 
-
+void vaciarBuffer() {
+    if (cin.fail()) {
+        cin.clear(); // Limpia los flags de error de cin
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
 
 
 int submenu_producto(){
@@ -889,7 +903,7 @@ int submenu_producto(){
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     return opcion;
 }
 
@@ -906,7 +920,7 @@ int submenu_proveedor(){
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     return opcion;
 }
 
@@ -923,7 +937,7 @@ int submenu_cliente(){
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     return opcion;
 }
 
@@ -940,7 +954,7 @@ int submenu_transaccion(){
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     return opcion;
 }
     void mostrarProveedor(Proveedor* proveedor){
@@ -989,6 +1003,27 @@ void mostrarcliente(Cliente* cliente){
     cout<<"Fecha de Registro: " << cliente->fechaRegistro << endl;
 }
 
+void mostrarProducto(Producto* producto, Tienda* tienda){
+    if(producto == nullptr || tienda == nullptr) return;
+    cout<<"ID: " << producto->id << endl;
+    cout<<"Código: " << producto->codigo << endl;
+    cout<<"Nombre: " << producto->nombre << endl;
+    cout<<"Descripción: " << producto->descripcion << endl;
+    
+    // Mostrar nombre del proveedor
+    const char* nombreProveedor = "Desconocido";
+    for (int i = 0; i < tienda->numProveedores; i++) {
+        if (tienda->proveedores[i].id == producto->idProveedor) {
+            nombreProveedor = tienda->proveedores[i].nombre;
+            break;
+        }
+    }
+    cout<<"Proveedor: " << nombreProveedor << endl;
+    
+    cout<<"Precio: $" << producto->precio << endl;
+    cout<<"Stock: " << producto->stock << endl;
+    cout<<"Fecha de Registro: " << producto->fechaRegistro << endl;
+}
 bool validargantia(int garantia){
     return garantia > 0;
 }
@@ -1114,6 +1149,7 @@ bool existeProducto(Tienda* tienda, int id){
     return false;
 }
 
+
 bool rifDuplicado(Tienda* tienda, const char* rif){
     if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProveedores; i++) {
@@ -1197,6 +1233,8 @@ bool contieneSubstring(const char* texto, const char* busqueda){
     return false;
 }
 
+// vaciarBuffer implementado localmente (copia de la función)
+
 void crearProducto(Tienda* tienda){
     char codigo[20];
     char nombre[100];
@@ -1206,7 +1244,7 @@ void crearProducto(Tienda* tienda){
     int stock;
     char buffer[11];
     char respuesta;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     do{
     cout << "Ingrese el código del producto: ";
     cin.getline(codigo, 20);
@@ -1217,17 +1255,17 @@ void crearProducto(Tienda* tienda){
     cout << "Ingrese el ID del proveedor: ";
     cin >> idProveedor;
     } while(!existeProveedor(tienda, idProveedor));
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     do{
     cout << "Ingrese el precio unitario: ";
     cin >> precio;
     } while(precio < 0);
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     do{
     cout << "Ingrese el stock inicial: ";
     cin >> stock;
     } while(stock < 0);
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     cout << "Ingrese la descripción del producto: ";
     cin.getline(descripcion, 200);
     cout << "Resumen del producto a registrar:" << endl;
@@ -1240,7 +1278,7 @@ void crearProducto(Tienda* tienda){
     cout <<"Fecha de registro: "<<buffer<<endl;
     cout << "¿Guardar producto? (S/N): ";
     cin >> respuesta;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     if (respuesta == 'S' || respuesta == 's') {
         if (tienda->numProductos >= tienda->capacidadProductos) {
             redimensionarProductos(tienda);
@@ -1252,6 +1290,7 @@ void crearProducto(Tienda* tienda){
         tienda->productos[tienda->numProductos].idProveedor = idProveedor;
         tienda->productos[tienda->numProductos].precio = precio;
         tienda->productos[tienda->numProductos].stock = stock;
+        tienda->productos[tienda->numProductos].activo = true;
         tienda->numProductos++;
     }
 }
@@ -1259,19 +1298,45 @@ void buscarProducto(Tienda* tienda){
     if(tienda==nullptr) return;
     int numResultados = 0;
     char nombre[100];
-    cout<<"ingrese nombre del producto a buscar: "<<endl;
-    cin.getline(nombre,100);
-    int* indices = buscarProductosPorNombre(tienda, nombre, &numResultados);
-    if(numResultados == 0){
-        cout << "No se encontraron productos con ese nombre." << endl;
+    char respuesta;
+    cout << "¿Desea buscar por nombre? (S/N): ";
+    cin >> respuesta;
+    vaciarBuffer();
+    if(respuesta == 'S' || respuesta == 's'){
+        cout << "Ingrese el nombre o parte del nombre del producto: ";
+        cin.getline(nombre, 100);
+        int* indices = buscarProductosPorNombre(tienda, nombre, &numResultados);
+        if (numResultados > 0) {
+            cout << "Productos encontrados: " << numResultados << endl;
+            for (int i = 0; i < numResultados; i++) {
+                mostrarProducto(&tienda->productos[indices[i]], tienda);
+                cout << "-----------------------------" << endl;
+            }
+        } else {
+            cout << "No se encontraron productos con ese nombre." << endl;
+        }
+        delete[] indices;
     } else {
-        cout << "Productos encontrados:" << endl;
-        for(int i = 0; i < numResultados; i++){
-            Producto* prod = &tienda->productos[indices[i]];
-            cout << "ID: " << prod->id << ", Nombre: " << prod->nombre << ", Código: " << prod->codigo << endl;
+        int id;
+        int indice;
+        do {
+            cout << "Ingrese el ID del producto (0 para cancelar): ";
+            cin >> id;
+            vaciarBuffer();
+            if (id == 0) {
+                indice = tienda->numProductos; // cancelar
+                break;
+            }
+            indice = buscarProductoPorId(tienda, id);
+            if (indice == tienda->numProductos) {
+                cout << "Producto no encontrado. Intente nuevamente." << endl;
+            }
+        } while (indice == tienda->numProductos);
+
+        if (indice != tienda->numProductos) {
+            mostrarProducto(&tienda->productos[indice], tienda);
         }
     }
-    delete[] indices;
 }
 void actualizarProducto(Tienda* tienda){ 
     if(tienda == nullptr) return;
@@ -1284,7 +1349,7 @@ void actualizarProducto(Tienda* tienda){
         cin >> id;
         i = buscarProductoPorId(tienda, id);
     }
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
         char nombre[100];
         char descripcion[200];
         float precio;
@@ -1300,7 +1365,7 @@ void actualizarProducto(Tienda* tienda){
             cout << "4. Cambiar garantía" << endl;
             cout << "0. Salir" << endl;
             cin >> respuesta;
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            vaciarBuffer();
             switch(respuesta){
                 case 1:
                     cout << "Ingrese el nuevo nombre: ";
@@ -1336,28 +1401,11 @@ void actualizarProducto(Tienda* tienda){
         } while(flag);
       
 }
-void actualizarStockProducto(Tienda* tienda){
-    if(tienda == nullptr) return;
-    int id;
-    cout << "Ingrese el ID del producto para actualizar stock: ";
-    cin >> id;
-    int i = buscarProductoPorId(tienda, id);
-    while(i == tienda->numProductos) {
-        cout << "Producto no encontrado. Ingrese un ID válido: ";
-        cin >> id;
-        i = buscarProductoPorId(tienda, id);
-    }
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    int nuevoStock;
-    do{
-        cout << "Ingrese el nuevo stock: ";
-        cin >> nuevoStock;
-    } while(nuevoStock < 0);
-    tienda->productos[i].stock = nuevoStock;
-     cout << "Stock actualizado exitosamente." << endl;
-}
 void listarProductos(Tienda* tienda){
     if(tienda == nullptr) return;
+    
+    int contadorActivos = 0; 
+
     cout << "╔══════════════════════════════════════════════════════════════════════════╗" << endl;
     cout << "║                         LISTADO DE PRODUCTOS                             ║" << endl;
     cout << "╠════╦═══════════╦══════════════════╦══════════════╦═══════╦════════╦══════╣" << endl;
@@ -1370,52 +1418,84 @@ void listarProductos(Tienda* tienda){
          << " ║ " << setw(10) << "Fecha"
          << " ║" << endl;
     cout << "╠════╬═══════════╬══════════════════╬══════════════╬═══════╬════════╬══════╣" << endl;
+
     for (int i = 0; i < tienda->numProductos; i++) {
         Producto* prod = &tienda->productos[i];
-        Proveedor* prov = nullptr;
+        
+        // Saltear si el producto está borrado lógicamente
+        if (!prod->activo){
+            continue; 
+        }
+
+        contadorActivos++;
+
+        // --- VALIDACIÓN COMÚN EN LUGAR DE TERNARIO ---
+        Proveedor* prov = nullptr; 
         for (int j = 0; j < tienda->numProveedores; j++) {
             if (tienda->proveedores[j].id == prod->idProveedor) {
                 prov = &tienda->proveedores[j];
                 break;
             }
         }
+
+        // Variable para guardar el nombre que imprimiremos
+        const char* nombreAMostrar;
+        if (prov != nullptr) {
+            nombreAMostrar = prov->nombre;
+        } else {
+            nombreAMostrar = "Desconocido";
+        }
+        // ---------------------------------------------
+
         cout << "║ " << setw(2) << prod->id
              << " ║ " << setw(10) << prod->codigo
              << " ║ " << setw(16) << prod->nombre
-             << " ║ " << setw(12) << (prov ? prov->nombre : "Desconocido")
+             << " ║ " << setw(12) << nombreAMostrar // Usamos la variable ya validada
              << " ║ " << setw(7) << fixed << setprecision(2) << prod->precio
              << " ║ " << setw(6) << prod->stock
              << " ║ " << setw(10) << prod->fechaRegistro
              << " ║" << endl;
     }
     cout << "╚════╩═══════════╩══════════════════╩══════════════╩═══════╩════════╩══════╝" << endl;
-    cout << "Total de productos: " << tienda->numProductos << endl;
+    
+    cout << "Total de productos activos: " << contadorActivos << endl;
 }
 
-void eliminarProducto(Tienda* tienda){
-        if(tienda == nullptr) return;
-        int id;
-        cout << "Ingrese el ID del producto a eliminar: ";
+void eliminarProducto(Tienda* tienda) {
+    if (tienda == nullptr || tienda->numProductos == 0) {
+        cout << "No hay productos registrados para eliminar." << endl;
+        return;
+    }
+
+    int id;
+    cout << "Ingrese el ID del producto a eliminar: ";
+    cin >> id;
+
+    int i = buscarProductoPorId(tienda, id);
+
+    // Ajuste: El producto debe existir Y estar activo para poder ser eliminado
+    // Si buscarProductoPorId no filtra por 'activo', lo validamos aquí
+    while(i == tienda->numProductos || (i < tienda->numProductos && !tienda->productos[i].activo)) {
+        cout << "Producto no encontrado o ya inactivo. Ingrese un ID válido: ";
         cin >> id;
-        int i = buscarProductoPorId(tienda, id);
-        while(i == tienda->numProductos) {
-            cout << "Producto no encontrado. Ingrese un ID válido: ";
-            cin >> id;
-            i = buscarProductoPorId(tienda, id);
-        }
-        char respuesta;
-        cout << "¿Confirma que desea eliminar el producto '" << tienda->productos[i].nombre << "'? (S/N): ";
-        cin >> respuesta;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        if (respuesta == 'S' || respuesta == 's') {
-            for (int j = i; j < tienda->numProductos - 1; j++) {
-                tienda->productos[j] = tienda->productos[j + 1];
-            }
-            tienda->numProductos--;
-            cout << "Producto eliminado exitosamente." << endl;
-        } else {
-            cout << "Eliminación cancelada." << endl;
-        }
+        i = buscarProductoPorId(tienda, id);
+    }
+
+    char respuesta;
+    cout << "¿Confirma que desea eliminar el producto '" << tienda->productos[i].nombre << "'? (S/N): ";
+    cin >> respuesta;
+    vaciarBuffer();
+
+    if (respuesta == 'S' || respuesta == 's') {
+        // --- CAMBIO EXCLUSIVO: ELIMINACIÓN LÓGICA ---
+        tienda->productos[i].activo = false; 
+        // IMPORTANTE: No hacemos tienda->numProductos-- porque el registro 
+        // sigue ocupando su lugar en el arreglo, solo que ahora es invisible.
+        
+        cout << "Producto eliminado (marcado como inactivo) exitosamente." << endl;
+    } else {
+        cout << "Eliminación cancelada." << endl;
+    }
 }
 // Funciones CRUD - PROVEEDORES
 void crearProveedor(Tienda* tienda){
@@ -1452,7 +1532,7 @@ void crearProveedor(Tienda* tienda){
     cout <<"Fecha de registro: "<<buffer<<endl;
     cout << "¿Guardar proveedor? (S/N): ";
     cin >> respuesta;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     if (respuesta == 'S' || respuesta == 's') {
         if (tienda->numProveedores >= tienda->capacidadProveedores) {
             redimensionarProveedores(tienda);
@@ -1508,7 +1588,7 @@ void actualizarProveedor(Tienda* tienda){
     cout << "Seleccione una opción: ";
     int opcion;
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     switch(opcion){
         case 1:
             cout << "Ingrese el nuevo nombre: ";
@@ -1636,7 +1716,7 @@ void crearCliente(Tienda* tienda){
     cout <<"Fecha de registro: "<<buffer<<endl;
     cout << "¿Desea guardar al cliente? (S/N): ";
     cin >> respuesta;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     if (respuesta == 'S' || respuesta == 's') {
         if (tienda->numClientes >= tienda->capacidadClientes) {
             redimensionarClientes(tienda);
@@ -1692,7 +1772,7 @@ void actualizarCliente(Tienda* tienda){
     cout << "Seleccione una opción: ";
     int opcion;
     cin >> opcion;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    vaciarBuffer();
     switch(opcion){
         case 1:
             cout << "Ingrese el nuevo nombre: ";
@@ -1894,10 +1974,6 @@ void registrarVenta(Tienda* tienda){
     } else {
         cout << "Registro de venta cancelado." << endl;
     }
-    
-
-    
-
 }
 void buscarTransacciones(Tienda* tienda){
         if(tienda == nullptr) return;
