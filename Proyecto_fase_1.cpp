@@ -1438,26 +1438,42 @@ void actualizarProducto(Tienda* tienda){
             vaciarBuffer();
             switch(respuesta){
                 case 1:
-                    cout << "Ingrese el nuevo nombre: ";
+                    cout << "Ingrese el nuevo nombre (si desea cancelar presione -1): ";
                     cin.getline(nombre, 100);
+                    if(strcmp(nombre, "-1") == 0) {
+                        cout << "Operación cancelada." << endl;
+                        return;
+                    }
                     strcpy(tienda->productos[i].nombre, nombre);
                     break;
                 case 2:
-                    cout << "Ingrese la nueva descripción: ";
+                    cout << "Ingrese la nueva descripción (si desea cancelar presione -1): ";
                     cin.getline(descripcion, 200);
+                    if(strcmp(descripcion, "-1") == 0) {
+                        cout << "Operación cancelada." << endl;
+                        return;
+                    }
                     strcpy(tienda->productos[i].descripcion, descripcion);
                     break;
                 case 3:
                     do{
-                        cout << "Ingrese el nuevo precio: ";
+                        cout << "Ingrese el nuevo precio (si desea cancelar presione -1): ";
                         cin >> precio;
+                        if(precio == -1) {
+                            cout << "Operación cancelada." << endl;
+                            return;
+                        }
                     } while(precio < 0);
                     tienda->productos[i].precio = precio;
                     break;
                 case 4:
                     do{
-                        cout << "Ingrese la nueva garantía (en meses): ";
+                        cout << "Ingrese la nueva garantía (en meses) (si desea cancelar presione -1): ";
                         cin >> garantia;
+                        if(garantia == -1) {
+                            cout << "Operación cancelada." << endl;
+                            return;
+                        }
                     } while(!validargantia(garantia));
                     tienda->productos[i].garantia = garantia;
                     break;
@@ -2292,7 +2308,7 @@ void registrarVenta(Tienda* tienda){
             redimensionarTransacciones(tienda);
         }
         Transaccion* t = &tienda->transacciones[tienda->numTransacciones];
-        cout << "Ingrese una breve descripcion o nota : ";
+        cout << "Ingrese una breve descripcion o nota (): ";
             cin.ignore(); // Limpia el salto de línea anterior
             cin.getline(t->descripcion, 100);
         t->id = tienda->siguienteIdTransaccion++;
@@ -2328,28 +2344,41 @@ void buscarTransacciones(Tienda* tienda){
     cout << "3. ID de cliente" << endl;
     cout << "4. ID de proveedor" << endl;
     cout << "5. Fecha (DD/MM/AAAA)" << endl;
+    cout << "6. Ingrese un numero distinto a las opciones para cancelar" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
     vaciarBuffer();
     switch(opcion){
         case 1:
-            cout << "Ingrese ID de transacción: ";
+            cout << "Ingrese ID de transacción (si desea cancelar presione -1): ";
             cin >> id;
             vaciarBuffer();
+            if(id == -1) {
+                cout << "Operación cancelada." << endl;
+                return;
+            }
             i = buscartransaccionPorId(tienda, id);
             while(i == tienda->numTransacciones) {
-                cout << "Transacción no encontrada. Ingrese un ID válido: ";
+                cout << "Transacción no encontrada. Ingrese un ID válido (si desea cancelar presione -1): ";
                 cin >> id;
                 vaciarBuffer();
+                if(id == -1) {
+                    cout << "Operación cancelada." << endl;
+                    return;
+                }
                 i = buscartransaccionPorId(tienda, id);
             }
             mostrarTransaccion(&tienda->transacciones[i]);
             break;
         case 2:
-            cout << "Ingrese ID de producto: ";
+            cout << "Ingrese ID de producto (si desea cancelar presione -1): ";
             cin >> idProducto;
             vaciarBuffer();
-            cout << "Transacciones para el producto ID " << idProducto << ":" << endl;
+            if(idProducto == -1) {
+                cout << "Operación cancelada." << endl;
+                return;
+            }
+            cout << "Transacciones para el producto ID  " << idProducto << ":" << endl;
             for (int j = 0; j < tienda->numTransacciones; j++) {
                 if (tienda->transacciones[j].idProducto == idProducto && !tienda->transacciones[j].cancelada) {
                     mostrarTransaccion(&tienda->transacciones[j]);
@@ -2357,9 +2386,13 @@ void buscarTransacciones(Tienda* tienda){
             }
             break;
         case 3:
-            cout << "Ingrese ID de cliente: ";
+            cout << "Ingrese ID de cliente (si desea cancelar presione -1): ";
             cin >> idCliente;
             vaciarBuffer();
+            if(idCliente == -1) {
+                cout << "Operación cancelada." << endl;
+                return;
+            }
             cout << "Transacciones para el cliente ID " << idCliente << ":" << endl;
             for (int j = 0; j < tienda->numTransacciones; j++) {
                 if (tienda->transacciones[j].idRelacionado == idCliente && tienda->transacciones[j].tipo == 'V' && !tienda->transacciones[j].cancelada) {
@@ -2368,9 +2401,13 @@ void buscarTransacciones(Tienda* tienda){
             }
             break;
         case 4:
-            cout << "Ingrese ID de proveedor: ";
+            cout << "Ingrese ID de proveedor (si desea cancelar presione -1): ";
             cin >> idProveedor;
             vaciarBuffer();
+            if(idProveedor == -1) {
+                cout << "Operación cancelada." << endl;
+                return;
+            }
             cout << "Transacciones para el proveedor ID " << idProveedor << ":" << endl;
             for (int j = 0; j < tienda->numTransacciones; j++) {
                 if (tienda->transacciones[j].idRelacionado == idProveedor && tienda->transacciones[j].tipo == 'C' && !tienda->transacciones[j].cancelada) {
@@ -2379,11 +2416,15 @@ void buscarTransacciones(Tienda* tienda){
             }
             break;
         case 5:
-            cout << "Ingrese fecha (DD/MM/AAAA): ";
+            cout << "Ingrese fecha (DD/MM/AAAA) (si desea cancelar presione -1): ";
             while(!validarFecha(buffer)) {
                 cout << "Formato de fecha inválido. Use DD/MM/AAAA." << endl;
                 cin.getline(buffer, 11);
                 vaciarBuffer();
+            }
+            if(strcmp(buffer, "-1") == 0) {
+                cout << "Operación cancelada." << endl;
+                return;
             }
             cout << "Transacciones para la fecha " << buffer << ":" << endl;
             for (int j = 0; j < tienda->numTransacciones; j++) {
@@ -2392,6 +2433,9 @@ void buscarTransacciones(Tienda* tienda){
                 }
             }
             break;
+            case 6:
+             cout << "Búsqueda cancelada." << endl;
+             return;
         default:
             cout << "Opción no válida." << endl;    
     }
@@ -2454,8 +2498,13 @@ void cancelarTransaccion(Tienda* tienda) {
     }
 
     int id;
-    cout << "Ingrese ID de transacción a anular: ";
+    cout << "Ingrese ID de transacción a anular (si desea cancelar presione -1): ";
     cin >> id;
+    vaciarBuffer();
+    if (id == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
 
     // Buscamos el índice
     int i = buscartransaccionPorId(tienda, id);
