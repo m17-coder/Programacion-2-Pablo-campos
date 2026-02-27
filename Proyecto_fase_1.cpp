@@ -1308,7 +1308,7 @@ void crearProducto(Tienda* tienda){
         return;
     }
     do{
-    cout << "Ingrese el ID del proveedor(-1 si desea cancelar busqueda): ";
+    cout << "Ingrese el ID del proveedor asociado al producto (-1 si desea cancelar busqueda): ";
     cin >> idProveedor;
     if(idProveedor == -1) {
         return;
@@ -1611,22 +1611,49 @@ void crearProveedor(Tienda* tienda){
     char direccion[200];
     char buffer[11];
     char respuesta;
-    cout << "Ingrese el nombre del proveedor: ";
+
+    cout << "Ingrese el nombre del proveedor (si desea cancelar presione -1): ";
     cin.getline(nombre, 100);
-    cout << "Ingrese el RIF del proveedor: ";
+    vaciarBuffer();
+    if(strcmp(nombre, "-1") == 0) {
+        return;
+    }
+    cout << "Ingrese el RIF del proveedor (si desea cancelar presione -1): ";
+    cin.getline(rif, 20);
+    vaciarBuffer();
+    if(strcmp(rif, "-1") == 0) {
+        return;
+    }
     while (rifDuplicado(tienda, rif)) {
         cout << "ERROR: El RIF '" << rif << "' ya está registrado." << endl;
         cin.getline(rif, 20);
+        vaciarBuffer();
+        if(strcmp(rif, "-1") == 0) {
+            return;
+        }
+        vaciarBuffer(); 
     }
-    cout << "Ingrese el teléfono del proveedor: ";
+    cout << "Ingrese el teléfono del proveedor (si desea cancelar presione -1): ";
     cin.getline(telefono, 20);
-    cout << "Ingrese el email del proveedor: ";
+    vaciarBuffer();
+    if(strcmp(telefono, "-1") == 0) {
+        return;
+    }
+    cout << "Ingrese el email del proveedor (si desea cancelar presione -1): ";
     while(!validarEmail(email)) {
         cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
         cin.getline(email, 100);
+        vaciarBuffer();
+        if(strcmp(email, "-1") == 0) {
+            return;
+        }
     }
-    cout << "Ingrese la dirección del proveedor: ";
+    cout << "Ingrese la dirección del proveedor (si desea cancelar presione -1): ";
     cin.getline(direccion, 200);
+    vaciarBuffer();
+    if(strcmp(direccion, "-1") == 0) {
+        return;
+    }
     cout << "Resumen del proveedor a registrar:" << endl;
     cout << "Nombre: " << nombre << endl;
     cout << "RIF: " << rif << endl;
@@ -1656,12 +1683,18 @@ void crearProveedor(Tienda* tienda){
 void buscarProveedor(Tienda* tienda){
     if(tienda == nullptr) return;
     int id;
-    cout << "Ingrese el ID del proveedor a buscar: ";
+    cout << "Ingrese el ID del proveedor a buscar (si desea cancelar presione -1): ";
     cin >> id;
+    if(id == -1) {
+        return;
+    }
     int i = buscarProveedorPorId(tienda, id);
     while(i == tienda->numProveedores) {
-        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cout << "Proveedor no encontrado. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            return;
+        }
         i = buscarProveedorPorId(tienda, id);
     }
     mostrarProveedor(&tienda->proveedores[i]);
@@ -1669,12 +1702,18 @@ void buscarProveedor(Tienda* tienda){
 void actualizarProveedor(Tienda* tienda){
     if(tienda == nullptr) return;
     int id;
-    cout << "Ingrese el ID del proveedor a actualizar: ";
+    cout << "Ingrese el ID del proveedor a actualizar (si desea cancelar presione -1): ";
     cin >> id;
+    if(id == -1) {
+        return;
+    }
     int i = buscarProveedorPorId(tienda, id);
     while(i == tienda->numProveedores) {
-        cout << "Proveedor no encontrado. Ingrese un ID válido: ";
+        cout << "Proveedor no encontrado. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            return;
+        }
         i = buscarProveedorPorId(tienda, id);
     }
     char nombre[100];
@@ -1697,12 +1736,19 @@ void actualizarProveedor(Tienda* tienda){
     vaciarBuffer();
     switch(opcion){
         case 1:
-            cout << "Ingrese el nuevo nombre: ";
+            cout << "Ingrese el nuevo nombre (si desea cancelar presione -1): ";
             cin.getline(nombre, 100);
+            if(strcmp(nombre, "-1") == 0) {
+                return;
+            }
             strcpy(tienda->proveedores[i].nombre, nombre);
             break;
         case 2:
-            cout << "Ingrese el nuevo RIF: ";
+            cout << "Ingrese el nuevo RIF (si desea cancelar presione -1): ";
+            cin.getline(rif, 20);
+            if(strcmp(rif, "-1") == 0) {
+                return;
+            }
             while (rifDuplicado(tienda, rif)) {
                 cout << "ERROR: El RIF '" << rif << "' ya está registrado." << endl;
                 cin.getline(rif, 20);
@@ -1710,21 +1756,36 @@ void actualizarProveedor(Tienda* tienda){
             strcpy(tienda->proveedores[i].rif, rif);
             break;
         case 3:
-            cout << "Ingrese el nuevo teléfono: ";
+            cout << "Ingrese el nuevo teléfono (si desea cancelar presione -1): ";
             cin.getline(telefono, 20);
+            if(strcmp(telefono, "-1") == 0) {
+                return;
+            }
             strcpy(tienda->proveedores[i].telefono, telefono);
             break;
         case 4:
-            cout << "Ingrese el nuevo email: ";
-                while(!validarEmail(email)) {
-                    cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
-                    cin.getline(email, 100);
-                }
-                strcpy(tienda->proveedores[i].email, email);
+            cout << "Ingrese el nuevo email (si desea cancelar presione -1): ";
+            cin.getline(email, 100);
+            vaciarBuffer();
+             if(strcmp(email, "-1") == 0) {
+                return;
+            }
+            while(!validarEmail(email)) {
+                cout << "ERROR: Formato de email inválido. Ingrese nuevamente (si desea cancelar presione -1): ";
+                cin.getline(email, 100);
+                    vaciarBuffer();
+                    if(strcmp(email, "-1") == 0) {
+                        return;
+                    }
+            }
+            strcpy(tienda->proveedores[i].email, email);
                 break;
             case 5:
-                cout << "Ingrese la nueva dirección: ";
+                cout << "Ingrese la nueva dirección (si desea cancelar presione -1): ";
                 cin.getline(direccion, 200);
+                if(strcmp(direccion, "-1") == 0) {
+                    return;
+                }
             strcpy(tienda->proveedores[i].direccion, direccion);
             break;
             case 0:
@@ -1762,13 +1823,21 @@ void listarProveedores(Tienda* tienda){
 void eliminarProveedor(Tienda* tienda) {
     if(tienda == nullptr) return;
     int id;
-    cout << "Ingrese el ID del proveedor a eliminar: ";
+    cout << "Ingrese el ID del proveedor a eliminar (si desea cancelar presione -1): ";
     cin >> id;
+    if(id == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
 
     int i = buscarProveedorPorId(tienda, id); // Usa la búsqueda filtrada
     while(i == tienda->numProveedores) {
-        cout << "Proveedor no encontrado o ya inactivo. Ingrese un ID válido: ";
+        cout << "Proveedor no encontrado o ya inactivo. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarProveedorPorId(tienda, id);
     }
 
@@ -1802,23 +1871,44 @@ void crearCliente(Tienda* tienda){
     char direccion[200];
     char buffer[11];
     char respuesta;
-    cout << "Ingrese el nombre del cliente: ";
+    cout << "Ingrese el nombre del cliente (si desea cancelar presione -1): ";
     cin.getline(nombre, 100);
-    cout << "Ingrese la cedula o RIF del cliente: ";
+    if(strcmp(nombre, "-1") == 0) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
+    cout << "Ingrese la cedula o RIF del cliente (si desea cancelar presione -1): ";
     while (rifDuplicado(tienda, cedula)) {
         cout << "ERROR: La cédula/RIF '" << cedula << "' ya está registrado." << endl;
-        cout << "Ingrese nuevamente la cedula o rif: "<< endl;        cin.getline(cedula, 20);
+        cout << "Ingrese nuevamente la cedula o rif (si desea cancelar presione -1): "<< endl;        
+        cin.getline(cedula, 20);
+        if(strcmp(cedula, "-1") == 0) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
     }
-    cout << "Ingrese el teléfono del cliente: ";
+    cout << "Ingrese el teléfono del cliente (si desea cancelar presione -1): ";
     cin.getline(telefono, 20);
-    cout << "Ingrese el email del cliente: ";
-    while(!validarEmail(email)) {
-        cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
-        cin.getline(email, 100);
+    if(strcmp(telefono, "-1") == 0) {
+        cout << "Operación cancelada." << endl;
+        return;
     }
-    cout << "Ingrese la dirección del cliente: ";
+    cout << "Ingrese el email del cliente (si desea cancelar presione -1): ";
+    while(!validarEmail(email)) {
+        cout << "ERROR: Formato de email inválido. Ingrese nuevamente (si desea cancelar presione -1): ";
+        cin.getline(email, 100);
+        if(strcmp(email, "-1") == 0) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
+    }
+    cout << "Ingrese la dirección del cliente (si desea cancelar presione -1): ";
     cin.getline(direccion, 200);
-    cout << "Resumen del cliente a registrar:" << endl;
+    if(strcmp(direccion, "-1") == 0) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
+    cout << "Resumen del cliente a registrar :" << endl;
     cout << "Nombre: " << nombre << endl;
     cout << "Cédula/RIF: " << cedula << endl;
     cout << "Teléfono: " << telefono << endl;
@@ -1847,12 +1937,20 @@ void crearCliente(Tienda* tienda){
 void buscarCliente(Tienda* tienda){
     if(tienda==nullptr) return;
     int id;
-    cout << "Ingrese el ID del cliente a buscar: ";
+    cout << "Ingrese el ID del cliente a buscar (si desea cancelar presione -1): ";
     cin >> id;
+    if(id == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     int i = buscarClientePorId(tienda, id);
     while(i == tienda->numClientes) {
-        cout << "Cliente no encontrado. Ingrese un ID válido: ";
+        cout << "Cliente no encontrado. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarClientePorId(tienda, id);
     }
     mostrarcliente(&tienda->clientes[i]);
@@ -1860,12 +1958,20 @@ void buscarCliente(Tienda* tienda){
 void actualizarCliente(Tienda* tienda){
     if(tienda==nullptr) return;
     int id;
-    cout << "Ingrese el ID del cliente a buscar: ";
+    cout << "Ingrese el ID del cliente a buscar (si desea cancelar presione -1): ";
     cin >> id;
+    if(id == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     int i = buscarClientePorId(tienda, id);
     while(i == tienda->numClientes) {
-        cout << "Cliente no encontrado. Ingrese un ID válido: ";
+        cout << "Cliente no encontrado. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarClientePorId(tienda, id);
     }
     char nombre[100];
@@ -1888,12 +1994,23 @@ void actualizarCliente(Tienda* tienda){
     vaciarBuffer();
     switch(opcion){
         case 1:
-            cout << "Ingrese el nuevo nombre: ";
+            cout << "Ingrese el nuevo nombre (si desea cancelar presione -1): ";
             cin.getline(nombre, 100);
+            if(strcmp(nombre, "-1") == 0) {
+                cout << "Operación cancelada." << endl;
+                flag = false;
+                return;
+            }
             strcpy(tienda->clientes[i].nombre, nombre);
             break;
         case 2:
-            cout << "Ingrese el nuevo RIF: ";
+            cout << "Ingrese el nuevo RIF (si desea cancelar presione -1): ";
+            cin.getline(cedula, 20);
+            if(strcmp(cedula, "-1") == 0) {
+                cout << "Operación cancelada." << endl;
+                flag = false;
+                return;
+            }
             while (rifDuplicado(tienda, cedula)) {
                 cout << "ERROR: El RIF '" << cedula << "' ya está registrado." << endl;
                 cin.getline(cedula, 20);
@@ -1901,22 +2018,43 @@ void actualizarCliente(Tienda* tienda){
             strcpy(tienda->clientes[i].cedula, cedula);
             break;
         case 3:
-            cout << "Ingrese el nuevo teléfono: ";
+            cout << "Ingrese el nuevo teléfono (si desea cancelar presione -1): ";
             cin.getline(telefono, 20);
+            if(strcmp(telefono, "-1") == 0) {
+                cout << "Operación cancelada." << endl;
+                flag = false;
+                return;
+            }
             strcpy(tienda->clientes[i].telefono, telefono);
             break;
         case 4:
-            cout << "Ingrese el nuevo email: ";
+            cout << "Ingrese el nuevo email (si desea cancelar presione -1): ";
+                cin.getline(email, 100);
+                if(strcmp(email, "-1") == 0) {
+                    cout << "Operación cancelada." << endl;
+                    flag = false;
+                    return;
+                }
                 while(!validarEmail(email)) {
-                    cout << "ERROR: Formato de email inválido. Ingrese nuevamente: ";
+                    cout << "ERROR: Formato de email inválido. Ingrese nuevamente (si desea cancelar presione -1): ";
                     cin.getline(email, 100);
+                    if(strcmp(email, "-1") == 0) {
+                        cout << "Operación cancelada." << endl;
+                        flag = false;
+                        return;
+                    }
                 }
                 strcpy(tienda->clientes[i].email, email);
                 break;
             case 5:
-                cout << "Ingrese la nueva dirección: ";
+                cout << "Ingrese la nueva dirección (si desea cancelar presione -1): ";
                 cin.getline(direccion, 200);
-            strcpy(tienda->clientes[i].direccion, direccion);
+                if(strcmp(direccion, "-1") == 0) {
+                    cout << "Operación cancelada." << endl;
+                    flag = false;
+                    return;
+                }
+                strcpy(tienda->clientes[i].direccion, direccion);
             break;
             case 0:
                 cout << "Edición cancelada." << endl;
@@ -1953,12 +2091,20 @@ void listarClientes(Tienda* tienda){
 void eliminarCliente(Tienda* tienda){
         if(tienda==nullptr) return;
         int id;
-        cout << "Ingrese el ID del cliente a eliminar: ";
+        cout << "Ingrese el ID del cliente a eliminar (si desea cancelar presione -1): ";
         cin >> id;
+        if(id == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         int i = buscarClientePorId(tienda, id);
         while(i == tienda->numClientes) {
-            cout << "Cliente no encontrado. Ingrese un ID válido: ";
+            cout << "Cliente no encontrado. Ingrese un ID válido (si desea cancelar presione -1): ";
             cin >> id;
+            if(id == -1) {
+                cout << "Operación cancelada." << endl;
+                return;
+            }
             i = buscarClientePorId(tienda, id);
         }
         cout << "Esta seguro de eliminar el cliente: " << tienda->clientes[i].nombre << "? (s/n): ";
@@ -1984,25 +2130,41 @@ void registrarCompra(Tienda* tienda) {
     float precioUnitario, total;
     char respuesta; // Cambiado a char porque pides 'S'/'N'
 
-    cout << "Ingrese el ID del producto a comprar: ";
+    cout << "Ingrese el ID del producto a comprar (si desea cancelar presione -1): ";
     cin >> idProducto;
     vaciarBuffer();
+    if(idProducto == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     // buscarProductoPorId ya filtra si está activo
     int i = buscarProductoPorId(tienda, idProducto);
     while(i == tienda->numProductos) {
-        cout << "Producto no encontrado o inactivo. Ingrese un ID válido: ";
+        cout << "Producto no encontrado o inactivo. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> idProducto;
         vaciarBuffer();
+        if(idProducto == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarProductoPorId(tienda, idProducto);
     }
 
-    cout << "Ingrese la cantidad a comprar: ";
+    cout << "Ingrese la cantidad a comprar (si desea cancelar presione -1): ";
     cin >> cantidad;
+    if (cantidad == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     vaciarBuffer();
     while(cantidad <= 0) {
-        cout << "Cantidad inválida. Ingrese una cantidad mayor a 0: ";
+        cout << "Cantidad inválida. Ingrese una cantidad mayor a 0 (si desea cancelar presione -1): ";
         cin >> cantidad;
         vaciarBuffer();
+        if(cantidad == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
     }
 
     idProveedor = tienda->productos[i].idProveedor;
@@ -2060,24 +2222,40 @@ void registrarVenta(Tienda* tienda){
     char buffer[11];
     float precioUnitario, total;
     char respuesta; // Cambiado a char para comparar 'S'/'s' correctamente
-    cout << "Ingrese el ID del producto a vender: ";
+    cout << "Ingrese el ID del producto a vender (si desea cancelar presione -1): ";
     cin >> idProducto;
     vaciarBuffer();
+    if(idProducto == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     // buscarProductoPorId ya filtra por .activo
     int i = buscarProductoPorId(tienda, idProducto);
     while(i == tienda->numProductos) {
-        cout << "Producto no encontrado o inactivo. Ingrese un ID válido: ";
+        cout << "Producto no encontrado o inactivo. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> idProducto;
         vaciarBuffer();
+        if(idProducto == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarProductoPorId(tienda, idProducto);
     }
-    cout << "Ingrese la cantidad a vender: ";
+    cout << "Ingrese la cantidad a vender (si desea cancelar presione -1): ";
     cin >> cantidad;
     vaciarBuffer();
+    if(cantidad == -1) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
     while(cantidad <= 0 || cantidad > tienda->productos[i].stock) {
-        cout << "Cantidad inválida. Stock disponible: " << tienda->productos[i].stock << ". Reintente: ";
+        cout << "Cantidad inválida. Stock disponible: " << tienda->productos[i].stock << ". Reintente (si desea cancelar presione -1): ";
         cin >> cantidad;
         vaciarBuffer();
+        if(cantidad == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
     }
     cout << "Ingrese el ID del cliente: ";
     cin >> idCliente;
@@ -2085,9 +2263,13 @@ void registrarVenta(Tienda* tienda){
     // CAMBIO 1: Simplificación de la búsqueda del cliente (ya filtra por .activo)
     int j = buscarClientePorId(tienda, idCliente);
     while(j == tienda->numClientes) {
-        cout << "Cliente no encontrado o inactivo. Ingrese un ID válido: ";
+        cout << "Cliente no encontrado o inactivo. Ingrese un ID válido (si desea cancelar presione -1): ";
         cin >> idCliente;
         vaciarBuffer();
+        if(idCliente == -1) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         j = buscarClientePorId(tienda, idCliente);
     }
     
@@ -2110,7 +2292,7 @@ void registrarVenta(Tienda* tienda){
             redimensionarTransacciones(tienda);
         }
         Transaccion* t = &tienda->transacciones[tienda->numTransacciones];
-        cout << "Ingrese una breve descripcion o nota: ";
+        cout << "Ingrese una breve descripcion o nota : ";
             cin.ignore(); // Limpia el salto de línea anterior
             cin.getline(t->descripcion, 100);
         t->id = tienda->siguienteIdTransaccion++;
