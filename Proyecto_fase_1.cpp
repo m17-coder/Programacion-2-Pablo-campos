@@ -959,7 +959,7 @@ int submenu_transaccion(){
     vaciarBuffer();
     return opcion;
 }
-    void mostrarProveedor(Proveedor* proveedor){
+ void mostrarProveedor(Proveedor* proveedor){
         if(proveedor == nullptr) return;
     cout<<"ID: " << proveedor->id << endl;
     cout<<"Nombre: " << proveedor->nombre << endl;
@@ -1003,6 +1003,18 @@ void mostrarcliente(Cliente* cliente){
     cout<<"Email: " << cliente->email << endl;
     cout<<"Dirección: " << cliente->direccion << endl;
     cout<<"Fecha de Registro: " << cliente->fechaRegistro << endl;
+}
+void mostrarTransaccion(Transaccion* transaccion){
+    if(transaccion == nullptr) return;
+    cout<<"ID: " << transaccion->id << endl;
+    cout<<"Tipo: " << (transaccion->tipo == 'C' ? "COMPRA" : "VENTA") << endl;
+    cout<<"ID Producto: " << transaccion->idProducto << endl;
+    cout<<"ID Cliente/Proveedor: " << transaccion->idRelacionado << endl;
+    cout<<"Cantidad: " << transaccion->cantidad << endl;
+    cout<<"Precio Unitario: $" << transaccion->precioUnitario << endl;
+    cout<<"Total: $" << transaccion->total << endl;
+    cout<<"Fecha: " << transaccion->fecha << endl;
+    cout<<"Descripción: " << transaccion->descripcion << endl;
 }
 
 void mostrarProducto(Producto* producto, Tienda* tienda){
@@ -1140,7 +1152,36 @@ bool validarEmail(const char* email){
     return true;
     
 }
+bool validarFecha(const char* fecha) {
+    // 1. Validar longitud exacta (YYYY-MM-DD = 10 caracteres)
+    if (strlen(fecha) != 10) return false;
 
+    // 2. Validar formato de guiones: 2026-02-26
+    //                             0123456789
+    if (fecha[4] != '-' || fecha[7] != '-') return false;
+
+    // 3. Extraer valores numéricos (usando atoi o sscanf)
+    int anio = atoi(fecha);
+    int mes = atoi(fecha + 5);
+    int dia = atoi(fecha + 8);
+
+    // 4. Validaciones lógicas básicas
+    if (anio < 1900 || anio > 2100) return false; // Rango razonable
+    if (mes < 1 || mes > 12) return false;
+    if (dia < 1 || dia > 31) return false;
+
+    // 5. Validar días según el mes
+    int diasPorMes[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+    // Caso especial: Año Bisiesto
+    if ((anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0)) {
+        diasPorMes[1] = 29;
+    }
+
+    if (dia > diasPorMes[mes - 1]) return false;
+
+    return true;
+}
 bool existeProducto(Tienda* tienda, int id){
     if(tienda == nullptr) return false;
     for (int i = 0; i < tienda->numProductos; i++) {
@@ -1205,27 +1246,6 @@ int buscarClientePorId(Tienda* tienda, int id){
      cout << "Cliente no encontrado." << endl;
      return tienda->numClientes; // Retorna un valor fuera de rango para indicar no encontrado
 }
-int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* numResultados){
-    if(tienda == nullptr || nombre == nullptr) {
-        *numResultados = 0;
-        return nullptr;
-    }
-    int* indices = new int[tienda->numProductos];
-    *numResultados = 0;
-    for (int i = 0; i < tienda->numProductos; i++) {
-        if (contieneSubstring(tienda->productos[i].nombre, nombre)) {
-            indices[*numResultados] = i;
-            (*numResultados)++;
-        }
-    }
-    return indices;
-}
-void convertirAMinusculas(char* cadena){
-    if(cadena == nullptr) return;
-    for (int i = 0; cadena[i] != '\0'; i++) {
-        cadena[i] = tolower(cadena[i]);
-    }
-}
 bool contieneSubstring(const char* texto, const char* busqueda){
     if(texto == nullptr || busqueda == nullptr) return false;
     int lenTexto = strlen(texto);
@@ -1243,9 +1263,28 @@ bool contieneSubstring(const char* texto, const char* busqueda){
     }
     return false;
 }
+void convertirAMinusculas(char* cadena){
+    if(cadena == nullptr) return;
+    for (int i = 0; cadena[i] != '\0'; i++) {
+        cadena[i] = tolower(cadena[i]);
+    }
+}
+int* buscarProductosPorNombre(Tienda* tienda, const char* nombre, int* cantidadEncontrada) {
+    *cantidadEncontrada = 0;
+    if (tienda->numProductos == 0) return nullptr;
+
+    int* indices = new int[tienda->numProductos];
+    for (int i = 0; i < tienda->numProductos; i++) {
+        // CAMBIO: Solo agregar si coincide el nombre Y está activo
+        if (tienda->productos[i].activo && strstr(tienda->productos[i].nombre, nombre) != nullptr) {
+            indices[*cantidadEncontrada] = i;
+            (*cantidadEncontrada)++;
+        }
+    }
+    return indices;
+}
 
 // vaciarBuffer implementado localmente (copia de la función)
-
 void crearProducto(Tienda* tienda){
     char codigo[20];
     char nombre[100];
@@ -1257,14 +1296,23 @@ void crearProducto(Tienda* tienda){
     char respuesta;
     vaciarBuffer();
     do{
-    cout << "Ingrese el código del producto: ";
+    cout << "Ingrese el código del producto(-1 si desea cancelar busqueda):  ";
     cin.getline(codigo, 20);
+    if(strcmp(codigo, "-1") == 0) {
+        return;
+    }
     } while(codigoDuplicado(tienda, codigo));
-    cout << "Ingrese el nombre del producto: ";
+    cout << "Ingrese el nombre del producto(-1 si desea cancelar busqueda): ";
     cin.getline(nombre, 100);
+    if(strcmp(nombre, "-1") == 0) {
+        return;
+    }
     do{
-    cout << "Ingrese el ID del proveedor: ";
+    cout << "Ingrese el ID del proveedor(-1 si desea cancelar busqueda): ";
     cin >> idProveedor;
+    if(idProveedor == -1) {
+        return;
+    }
     } while(!existeProveedor(tienda, idProveedor));
     vaciarBuffer();
     do{
@@ -1273,12 +1321,18 @@ void crearProducto(Tienda* tienda){
     } while(precio < 0);
     vaciarBuffer();
     do{
-    cout << "Ingrese el stock inicial: ";
+    cout << "Ingrese el stock inicial(-1 si desea cancelar asignacion): ";
     cin >> stock;
+    if(stock == -1) {
+        return;
+    }
     } while(stock < 0);
     vaciarBuffer();
-    cout << "Ingrese la descripción del producto: ";
+    cout << "Ingrese la descripción del producto(ingrese N si desea cancelar asignacion): ";
     cin.getline(descripcion, 200);
+    if(strcmp(descripcion, "N") == 0) {
+        return;
+    }
     cout << "Resumen del producto a registrar:" << endl;
     cout << "Código: " << codigo << endl;
     cout << "Nombre: " << nombre << endl;
@@ -1314,6 +1368,7 @@ void buscarProducto(Tienda* tienda){
     cin >> respuesta;
     vaciarBuffer();
     if(respuesta == 'S' || respuesta == 's'){
+        vaciarBuffer();
         cout << "Ingrese el nombre o parte del nombre del producto: ";
         cin.getline(nombre, 100);
         int* indices = buscarProductosPorNombre(tienda, nombre, &numResultados);
@@ -1354,12 +1409,14 @@ void buscarProducto(Tienda* tienda){
 void actualizarProducto(Tienda* tienda){ 
     if(tienda == nullptr) return;
     int id;
-    cout << "Ingrese el ID del producto a actualizar: ";
+    cout << "Ingrese el ID del producto a actualizar(0 para cancelar actualizacion): ";
     cin >> id;
+    if(id == 0) return;
     int i = buscarProductoPorId(tienda, id);
     while(i == tienda->numProductos) {
-        cout << "Producto no encontrado. Ingrese un ID válido: ";
+        cout << "Producto no encontrado. Ingrese un ID válido o ingrese 0 para cancelar busqueda: ";
         cin >> id;
+        if(id == 0) return;
         i = buscarProductoPorId(tienda, id);
     }
     vaciarBuffer();
@@ -1417,8 +1474,9 @@ void actualizarProducto(Tienda* tienda){
 void actualizarStock(Tienda* tienda) {
     if (tienda == nullptr) return;
     int id;
-    cout << "Ingrese el ID del producto para actualizar stock: ";
+    cout << "Ingrese el ID del producto para actualizar stock (0 para cancelar busqueda): ";
     cin >> id;
+    if(id == 0) return;
     // Esta función ahora solo devolverá un índice válido si el producto existe Y está activo
     int i = buscarProductoPorId(tienda, id);
     while (i == tienda->numProductos) {
@@ -1506,16 +1564,25 @@ void eliminarProducto(Tienda* tienda) {
     }
 
     int id;
-    cout << "Ingrese el ID del producto a eliminar: ";
+    cout << "Ingrese el ID del producto a eliminar(0 para cancelar busqueda): ";
     cin >> id;
+
+    if(id == 0) {
+        cout << "Operación cancelada." << endl;
+        return;
+    }
 
     int i = buscarProductoPorId(tienda, id);
 
     // Ajuste: El producto debe existir Y estar activo para poder ser eliminado
     // Si buscarProductoPorId no filtra por 'activo', lo validamos aquí
     while(i == tienda->numProductos || (i < tienda->numProductos && !tienda->productos[i].activo)) {
-        cout << "Producto no encontrado o ya inactivo. Ingrese un ID válido: ";
+        cout << "Producto no encontrado o ya inactivo. Ingrese un ID válido o ingrese 0 para cancelar busqueda: ";
         cin >> id;
+        if(id == 0) {
+            cout << "Operación cancelada." << endl;
+            return;
+        }
         i = buscarProductoPorId(tienda, id);
     }
 
@@ -2064,9 +2131,88 @@ void registrarVenta(Tienda* tienda){
     }
 }
 void buscarTransacciones(Tienda* tienda){
-        if(tienda == nullptr) return;
-        cout << "Función de búsqueda de transacciones aún no implementada." << endl;
-
+    if(tienda == nullptr) return;
+    int i;
+    int id;
+    int opcion;
+    int idProducto;
+    int idCliente;
+    int idProveedor;
+    char buffer[11];
+    char tipo;
+    cout << "Buscar transacciones por:" << endl;
+    cout << "1. ID de transacción" << endl;
+    cout << "2. ID de producto" << endl;
+    cout << "3. ID de cliente" << endl;
+    cout << "4. ID de proveedor" << endl;
+    cout << "5. Fecha (DD/MM/AAAA)" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    vaciarBuffer();
+    switch(opcion){
+        case 1:
+            cout << "Ingrese ID de transacción: ";
+            cin >> id;
+            vaciarBuffer();
+            i = buscartransaccionPorId(tienda, id);
+            while(i == tienda->numTransacciones) {
+                cout << "Transacción no encontrada. Ingrese un ID válido: ";
+                cin >> id;
+                vaciarBuffer();
+                i = buscartransaccionPorId(tienda, id);
+            }
+            mostrarTransaccion(&tienda->transacciones[i]);
+            break;
+        case 2:
+            cout << "Ingrese ID de producto: ";
+            cin >> idProducto;
+            vaciarBuffer();
+            cout << "Transacciones para el producto ID " << idProducto << ":" << endl;
+            for (int j = 0; j < tienda->numTransacciones; j++) {
+                if (tienda->transacciones[j].idProducto == idProducto && !tienda->transacciones[j].cancelada) {
+                    mostrarTransaccion(&tienda->transacciones[j]);
+                }
+            }
+            break;
+        case 3:
+            cout << "Ingrese ID de cliente: ";
+            cin >> idCliente;
+            vaciarBuffer();
+            cout << "Transacciones para el cliente ID " << idCliente << ":" << endl;
+            for (int j = 0; j < tienda->numTransacciones; j++) {
+                if (tienda->transacciones[j].idRelacionado == idCliente && tienda->transacciones[j].tipo == 'V' && !tienda->transacciones[j].cancelada) {
+                   mostrarTransaccion(&tienda->transacciones[j]);
+                }
+            }
+            break;
+        case 4:
+            cout << "Ingrese ID de proveedor: ";
+            cin >> idProveedor;
+            vaciarBuffer();
+            cout << "Transacciones para el proveedor ID " << idProveedor << ":" << endl;
+            for (int j = 0; j < tienda->numTransacciones; j++) {
+                if (tienda->transacciones[j].idRelacionado == idProveedor && tienda->transacciones[j].tipo == 'C' && !tienda->transacciones[j].cancelada) {
+                    mostrarTransaccion(&tienda->transacciones[j]);
+                }
+            }
+            break;
+        case 5:
+            cout << "Ingrese fecha (DD/MM/AAAA): ";
+            while(!validarFecha(buffer)) {
+                cout << "Formato de fecha inválido. Use DD/MM/AAAA." << endl;
+                cin.getline(buffer, 11);
+                vaciarBuffer();
+            }
+            cout << "Transacciones para la fecha " << buffer << ":" << endl;
+            for (int j = 0; j < tienda->numTransacciones; j++) {
+                if (strcmp(tienda->transacciones[j].fecha, buffer) == 0 && !tienda->transacciones[j].cancelada) {
+                    mostrarTransaccion(&tienda->transacciones[j]);
+                }
+            }
+            break;
+        default:
+            cout << "Opción no válida." << endl;    
+    }
 }
 void listarTransacciones(Tienda* tienda) {
     if (tienda == nullptr || tienda->numTransacciones == 0) {
@@ -2166,15 +2312,26 @@ void cancelarTransaccion(Tienda* tienda) {
 
 int main() {
     SetConsoleOutputCP(CP_UTF8);
+    
     bool flag = true;
     char nombreTienda[100] = "Tecnostore";
     char rifTienda[20] = "J-123456789";
+    
+    // Variables para los submenús (declaradas fuera para evitar errores de switch)
+    int opcion;
+    int submenuproducto;
+    int submenuProveedor;
+    int submenuCliente;
+    int submenuTrans;
+
     Tienda* tienda = new Tienda;
     inicializarTienda(tienda, nombreTienda, rifTienda);
+
     int anchoInterno = 43; 
     int prefijoLargo = 11;
     int espacioRestante = anchoInterno - prefijoLargo - (int)strlen(nombreTienda) + 1;
-    do{
+
+    do {
         cout << "╔═══════════════════════════════════════════╗" << endl;
         cout << "║      SISTEMA DE GESTIÓN DE INVENTARIO     ║" << endl;
         cout << "║   Tienda: " << nombreTienda << setw(espacioRestante) << "║" << endl;
@@ -2185,105 +2342,83 @@ int main() {
         cout << "4. Gestión de Transacciones" << endl;
         cout << "5. Salir" << endl;
         cout << "Seleccione una opción: ";
-        int opcion;
         cin >> opcion;
+        vaciarBuffer(); // Siempre limpiar después de un cin numérico
+
         switch (opcion) {
             case 1:
-                int submenuproducto;
-                do{
+                do {
                     submenuproducto = submenu_producto();
-                    switch(submenuproducto){
-                        case 1:
-                            crearProducto(tienda);
-                            break;
-                        case 2:
-                            buscarProducto(tienda);
-                            break;
-                        case 3:
-                            actualizarProducto(tienda);
-                            break;
-                        case 4:
-                            listarProductos(tienda);
-                            break;
-                        case 5:
-                            eliminarProducto(tienda);
-                            break;
-                        case 0:
-                            cout << "Volviendo al menú principal..." << endl;
-                            break;
-                        default:
-                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    switch(submenuproducto) {
+                        case 1: crearProducto(tienda); break;
+                        case 2: buscarProducto(tienda); break;
+                        case 3: actualizarProducto(tienda); break;
+                        case 4: actualizarStock(tienda); break; // IMPORTANTE: Agregada
+                        case 5: listarProductos(tienda); break;
+                        case 6: eliminarProducto(tienda); break;
+                        case 0: cout << "Volviendo al menú principal..." << endl; break;
+                        default: cout << "Opción no válida." << endl;
                     }
                 } while(submenuproducto != 0);
                 break;
+
             case 2:
-                int submenuProveedor;
-                do{
+                do {
                     submenuProveedor = submenu_proveedor();
-                    switch(submenuProveedor){
-                        case 1:
-                            crearProveedor(tienda);
-                            break;
-                        case 2:
-                            buscarProveedor(tienda);
-                            break;
-                        case 3:
-                            actualizarProveedor(tienda);
-                            break;
-                        case 4:
-                            listarProveedores(tienda);
-                            break;
-                        case 5:
-                            eliminarProveedor(tienda);
-                            break;
-                        case 0:
-                            cout << "Volviendo al menú principal..." << endl;
-                            break;
-                        default:
-                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    switch(submenuProveedor) {
+                        case 1: crearProveedor(tienda); break;
+                        case 2: buscarProveedor(tienda); break;
+                        case 3: actualizarProveedor(tienda); break;
+                        case 4: listarProveedores(tienda); break;
+                        case 5: eliminarProveedor(tienda); break;
+                        case 0: cout << "Volviendo al menú principal..." << endl; break;
+                        default: cout << "Opción no válida." << endl;
                     }
                 } while(submenuProveedor != 0);
                 break;
+
             case 3:
-                int submenuCliente;
-                do{
+                do {
                     submenuCliente = submenu_cliente();
-                    switch(submenuCliente){
-                        case 1:
-                            crearCliente(tienda);
-                            break;
-                        case 2:
-                            buscarCliente(tienda);
-                            break;
-                        case 3:
-                            actualizarCliente(tienda);
-                            break;
-                        case 4:
-                            listarClientes(tienda);
-                            break;
-                        case 5:
-                            eliminarCliente(tienda);
-                            break;
-                        case 0:
-                            cout << "Volviendo al menú principal..." << endl;
-                            break;
-                        default:
-                            cout << "Opción no válida. Intente nuevamente." << endl;
+                    switch(submenuCliente) {
+                        case 1: crearCliente(tienda); break;
+                        case 2: buscarCliente(tienda); break;
+                        case 3: actualizarCliente(tienda); break;
+                        case 4: listarClientes(tienda); break;
+                        case 5: eliminarCliente(tienda); break;
+                        case 0: cout << "Volviendo al menú principal..." << endl; break;
+                        default: cout << "Opción no válida." << endl;
                     }
                 } while(submenuCliente != 0);
                 break;
+
             case 4:
-                cout << "Gestión de Transacciones seleccionada." << endl;
+                do {
+                    submenuTrans = submenu_transaccion();
+                    switch(submenuTrans) {
+                        case 1: registrarCompra(tienda); break;
+                        case 2: registrarVenta(tienda); break;
+                        case 3: buscarTransacciones(tienda); break;
+                        case 4: listarTransacciones(tienda); break;
+                        case 5: cancelarTransaccion(tienda); break; // Eliminación lógica
+                        case 0: cout << "Volviendo al menú principal..." << endl; break;
+                        default: cout << "Opción no válida." << endl;
+                    }
+                } while(submenuTrans != 0);
                 break;
+
             case 5:
-                cout << "Saliendo del programa." << endl;
+                cout << "Saliendo del programa y liberando memoria..." << endl;
                 liberarTienda(&tienda);
                 flag = false;
-                return 0;
+                break;
+
             default:
                 cout << "Opción inválida. Intente de nuevo." << endl;
         } 
     } while (flag);
+
+    return 0;
 }
 
 
