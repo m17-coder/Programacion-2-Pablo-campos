@@ -1,0 +1,1054 @@
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <string.h>
+#include <windows.h>
+#include <cstring>
+#include <fstream>
+using namespace std;   
+
+/*# REPÚBLICA BOLIVARIANA DE VENEZUELA
+## UNIVERSIDAD RAFAEL URDANETA
+## FACULTAD DE INGENIERÍA
+## ESCUELA DE INGENIERÍA DE COMPUTACIÓN
+
+**ASIGNATURA:** PROGRAMACIÓN 2  
+**PROFESOR:** ING. VICTOR KNEIDER  
+**TRIMESTRE:** 2026-A
+
+---
+
+# PROYECTO 2: SISTEMA DE GESTIÓN DE INVENTARIO CON PERSISTENCIA Y ACCESO ALEATORIO
+
+## DESCRIPCIÓN GENERAL
+
+Evoluciona tu sistema de gestión de inventario del Proyecto 1 implementando **persistencia de datos mediante archivos binarios** y **acceso aleatorio**. El sistema debe demostrar dominio de operaciones de lectura/escritura binaria, navegación eficiente en archivos usando `seekg()/seekp()`, y gestión de relaciones entre múltiples archivos binarios sin depender de la carga total en memoria (RAM).
+
+---
+
+## OBJETIVOS DE APRENDIZAJE
+
+1. Implementar persistencia de datos con archivos binarios.
+2. Dominar operaciones de lectura/escritura binaria con la librería `<fstream>`.
+3. Aplicar acceso aleatorio y cálculo de offsets usando `seekg()` y `seekp()`.
+4. Comprender el mapeo entre estructuras en memoria y su representación física en disco.
+5. Gestionar índices, posiciones y borrado lógico en archivos binarios.
+6. Implementar integridad referencial entre múltiples archivos mediante IDs.
+
+---
+
+## FILOSOFÍA DE ACCESO ALEATORIO
+
+### Concepto Fundamental
+
+Este proyecto **NO carga todos los datos en memoria**. A diferencia del Proyecto 1, donde todo el sistema vivía en la RAM usando arreglos dinámicos, aquí los datos permanecen en disco y **solo se carga un registro a la vez en memoria cuando se necesita procesar**.
+
+### Ciclo de Vida de una Operación
+
+Para cualquier acción que involucre un registro (leer, modificar, eliminar lógicamente), tu programa debe seguir estrictamente este flujo:
+1. Abrir el archivo binario correspondiente.
+2. Calcular la posición exacta en bytes del registro buscado.
+3. Desplazar el puntero de lectura/escritura (`seekg` o `seekp`).
+4. Leer o escribir **únicamente ese registro**.
+5. Cerrar el archivo inmediatamente.
+
+### Ventajas de este enfoque
+
+- **Eficiencia de Memoria:** El uso de RAM es mínimo (apenas unos bytes para las variables temporales) sin importar si gestionas 10 o 100,000 registros.
+- **Persistencia Inmediata:** Si ocurre una falla eléctrica (muy común) o el programa crashea, la información ya procesada está segura en el disco.
+
+---
+
+## 1. MODELO DE PERSISTENCIA Y ARQUITECTURA
+
+El sistema debe crear **un archivo binario independiente por cada estructura principal**: `tienda.bin`, `productos.bin`, `proveedores.bin`, `clientes.bin` y `transacciones.bin`.
+
+### 1.1 Estructura Interna de los Archivos
+
+Cada archivo binario debe contar con un **Header (Encabezado)** al principio, seguido de los registros de datos:
+
+```
+[HEADER: 16 bytes] → Metadata administrativa del archivo
+[REGISTRO 0]
+[REGISTRO 1]
+...
+[REGISTRO N]
+```
+
+**Estructura obligatoria del Header:**
+
+```cpp
+struct ArchivoHeader {
+    int cantidadRegistros;      // Total histórico de registros
+    int proximoID;              // Siguiente ID a asignar (Autoincremental)
+    int registrosActivos;       // Registros que no están marcados como eliminados
+    int version;                // Control de versión del archivo
+};
+```
+
+El Header evita tener que recorrer todo el archivo secuencialmente para saber cuántos elementos existen o cuál es el próximo ID válido.
+
+---
+
+## 2. ADAPTACIÓN DE ESTRUCTURAS PARA PERSISTENCIA
+
+Para guardar estructuras en archivos binarios, estas no pueden contener punteros, arreglos dinámicos, ni strings de C++ (`std::string`). Su tamaño en bytes (`sizeof`) debe ser estático y predecible.
+
+A continuación, se muestra cómo debe evolucionar la estructura Producto de tu Proyecto 1 para soportar la fase 2. Debes aplicar esta misma lógica de transformación para Proveedor, Cliente y Transacción.
+
+```cpp
+struct Producto {
+    // 1. Datos básicos (Usar arreglos de char estáticos, NO std::string)
+    int id;
+    char codigo[20];
+    char nombre[100];
+    char descripcion[200];
+    float precio;
+    int stock;
+    
+    // 2. Llaves Foráneas (Relaciones)
+    int idProveedor;                 
+    
+    // 4. Estadísticas del registro
+    int stockMinimo;                 
+    int totalVendido;                
+    
+    // 5. Metadata de Control Obligatoria
+    bool eliminado;                  // Para BORRADO LÓGICO
+    time_t fechaCreacion;
+    time_t fechaUltimaModificacion;
+};
+```
+
+### 2.2 Estructura Transacción con Múltiples Productos (Archivo: transacciones.bin)
+Originalmente en la primera fase del proyecto, una transacción podía unicamente con tener UN SOLO PRODUCTO, pero deben convertirla para que pueda almacenar más de un producto por transacción. (Se debe mantener los mismos patrones de llaves foráneas)
+
+### 2.2 Principios para adaptar el resto de estructuras
+- **Tienda (`tienda.bin`):** Contendrá un único registro. Elimina todos los punteros a los arreglos de entidades. Solo debe guardar datos de la empresa y contadores estadísticos globales.
+- **Arreglos de Relaciones:** Si un Proveedor tiene múltiples Productos, usa un arreglo fijo de enteros (ej. `int productosIDs[100]`) para guardar los IDs, acompañado de su respectivo contador (`int cantidadProductos`).
+- **Borrado Lógico:** Toda estructura debe tener el flag `bool eliminado`. En un archivo binario, borrar físicamente un registro del medio corrompe las posiciones matemáticas de los demás.
+
+---
+
+## 3. LÓGICA DE OPERACIONES CON ARCHIVOS (CRUD)
+
+A continuación se detallan los requerimientos lógicos para las operaciones base. Es tu responsabilidad como ingeniero traducir estos algoritmos a código funcional en C++.
+
+### 3.1 Inicialización y Gestión de Headers
+Debes implementar funciones aisladas para leer y actualizar el header de cualquier archivo:
+
+- `bool inicializarArchivo(const char* nombreArchivo)`: Crea el archivo si no existe y escribe un `ArchivoHeader` inicializado en 0.
+- `ArchivoHeader leerHeader(const char* nombreArchivo)`: Abre el archivo, lee los primeros bytes correspondientes al header y lo retorna.
+- `bool actualizarHeader(const char* nombreArchivo, ArchivoHeader header)`: Sobrescribe únicamente la sección del header.
+
+### 3.2 Acceso Aleatorio y Cálculo de Offsets
+La clave del proyecto es la función matemática para ubicar un registro sin recorrer el archivo.
+
+**Fórmula de posición en bytes:**
+```
+sizeof(ArchivoHeader) + (indice * sizeof(TuEstructura))
+```
+
+> Nota: El indice (posición física 0, 1, 2...) no siempre es igual al ID del registro, especialmente si hay borrados lógicos. Debes hacer una función de búsqueda secuencial que reciba un ID y retorne su indice físico.
+
+### 3.3 Creación de un Registro (Append)
+Lógica requerida:
+
+- Leer el header actual para obtener el proximoID.
+- Asignar ese ID a tu nueva estructura y marcarla como `eliminado = false`.
+- Abrir el archivo en modo adición/binario (`ios::app | ios::binary` o usar `seekp(0, ios::end)`).
+- Escribir la estructura.
+- Actualizar los contadores en el header y guardarlo nuevamente.
+
+### 3.4 Actualización (Update) y Borrado Lógico (Delete)
+Lógica requerida:
+
+- Buscar el índice del registro mediante su ID.
+- Calcular su posición exacta en bytes.
+- Posicionar el cursor de escritura (`seekp`) en ese byte.
+- Escribir la estructura modificada (o la estructura con `eliminado = true`) sobrescribiendo los datos anteriores.
+
+---
+
+## 4. GESTIÓN DE RELACIONES Y TRANSACCIONES
+
+### 4.1 Registrar una Compra/Venta
+El proceso de registrar una transacción ahora involucra múltiples accesos a disco para mantener la coherencia.
+
+**Pasos algorítmicos obligatorios para una Venta:**
+
+1. Buscar y leer el Producto y el Cliente desde sus respectivos archivos.
+2. Validar reglas de negocio (ej. ¿Hay stock suficiente? ¿El cliente existe?).
+3. Si es válido, instanciar un registro Transaccion.
+4. Guardar la Transaccion al final de `transacciones.bin`.
+5. Modificar el Producto en memoria (restar stock, sumar estadísticas, añadir el ID de la transacción a su arreglo de historial) y actualizar su registro en el archivo binario.
+6. Modificar el Cliente en memoria (sumar gastos, añadir ID de transacción) y actualizar su registro en el archivo binario.
+
+---
+
+## 5. MANTENIMIENTO E INTEGRIDAD (NUEVAS FUNCIONALIDADES)
+
+### 5.1 Integridad Referencial
+Debes programar un módulo de diagnóstico `verificarIntegridadReferencial()` que detecte "referencias rotas".
+
+¿Qué debe hacer el algoritmo?
+
+- Recorrer `productos.bin`. Por cada producto activo, extraer su `idProveedor`.
+- Buscar en `proveedores.bin` si ese ID existe y no está eliminado. Si no existe, registrar el error.
+- Repetir la lógica cruzada para Transacciones (verificar que el `idProducto` y el `idCliente/Proveedor` aún existan).
+- Imprimir un reporte de salud de la base de datos al finalizar.
+
+### 5.2 Respaldo de Datos (Backup)
+Implementar una función `crearBackup()`:
+
+- Debe crear una carpeta (o usar un prefijo en el nombre) con la fecha y hora actual.
+- Debe copiar byte a byte los 5 archivos .bin operativos a este nuevo destino seguro.
+
+### 5.3 Reportes Analíticos (Lectura en Lote)
+Se requiere un submenú para leer datos y generar estadísticas:
+
+- **Productos con stock crítico:** Recorrer productos y filtrar los que tengan `stock <= stockMinimo`.
+- **Historial de Cliente:** Dado un ID de cliente, imprimir sus datos básicos, buscar todas las transacciones asociadas a su arreglo `comprasIDs[]` e imprimir el detalle recuperando el nombre del producto involucrado.
+
+---
+
+## 6. EXPERIENCIA DE USUARIO
+
+### 6.1. IMPRESIÓN DE DATOS
+- Todos los datos que se muestren en el sistema deben estar correctamente formateados usando tablas, colores, caracteres, etc
+
+### 6.2. PRACTICIDAD
+- Se debe tomar en cuenta que el sistema busca ser práctico, tal vez opciones de los submenus deberian repensarse para poder brindar la mejor experiencia de usuario. Por ejemplo: Cuando muestras la información de un producto ¿No sería bueno mostrar también la información del proveedor que lo vende, o solamente su id te parece suficiente?
+
+## 7. ENTREGABLES
+
+### 7.1 Código Fuente
+- Archivo .cpp principal (o modularizado en .h / .cpp).
+- Uso estricto de nomenclatura y comentarios descriptivos sobre los cálculos lógicos de bytes.
+
+### 7.2 Archivos de Datos de Prueba
+- Tu entrega debe venir acompañada de los archivos .bin pre-poblados con al menos: 15 productos, 5 proveedores, 8 clientes y 25 transacciones que demuestren el funcionamiento.
+
+### 7.3 Documentación Técnica (`README_V2.md`)
+- Diagrama de las estructuras y sus tamaños en bytes (`sizeof`).
+- Manual de usuario sencillo. */
+
+struct Producto {
+    int id;                    // Identificador único (autoincremental)
+    char codigo[20];           // Código del producto (ej: "PROD-001")
+    char nombre[100];          // Nombre del producto
+    char descripcion[200];     // Descripción del producto
+    int idProveedor;           // ID del proveedor asociado
+    float precio;              // Precio unitario
+    int stockminimo;           // Cantidad mínima en inventario
+    int totalVendido;          // Cantidad total vendida (para estadísticas)
+    int stockInicial;  // Cuánto había al registrarlo
+    int totalComprado;
+    char fechaRegistro[11];    // Formato: YYYY-MM-DD
+    time_t fechaCreacion;      // Timestamp de creación
+    time_t fechaUltimaModificacion; // Timestamp de última modificación
+    int garantia;
+    bool activo;               // Indica si el producto está activo o inactivo (no eliminado físicamente)
+};
+
+struct Proveedor {
+    int id;                    // Identificador único (autoincremental)
+    char nombre[100];          // Nombre del proveedor
+    char rif[20];              // RIF o identificación fiscal
+    char telefono[20];         // Teléfono de contacto
+    char email[100];           // Correo electrónico
+    char direccion[200];       // Dirección física
+    char fechaRegistro[11];    // Formato: YYYY-MM-DD
+    int stockminimo;
+    int stockvendido;
+    int totalSuministros;        // Cuántas veces le hemos comprado
+    float totalPagado;
+    bool activo;               // Indica si el proveedor está activo o inactivo
+    time_t fechaCreacion;      // Timestamp de creación
+    time_t fechaUltimaModificacion; // Timestamp de última modificación
+};
+
+struct Cliente {
+    int id;                    // Identificador único (autoincremental)
+    char nombre[100];          // Nombre completo del cliente
+    char cedula[20];           // Cédula o RIF
+    char telefono[20];         // Teléfono de contacto
+    char email[100];           // Correo electrónico
+    char direccion[200];       // Dirección física
+    int stockminimo;
+    int stockvendido;
+    int totalComprasRealizadas;  // Cuántas veces ha venido
+    float montoTotalGastado;
+    bool activo;               // Indica si el cliente está activo o inactivo
+    char fechaRegistro[11];    // Formato: YYYY-MM-DD
+    time_t fechaCreacion;      // Timestamp de creación
+    time_t fechaUltimaModificacion; // Timestamp de última modificación
+};
+
+struct DetalleVenta {
+    int idProducto;
+    int cantidad;
+    float precioUnitario;
+};
+
+struct Transaccion {
+    int id;                    // Identificador único (autoincremental)           // "COMPRA" o "VENTA"
+    int idProducto;            // ID del producto involucrado
+    int idRelacionado;         // ID del proveedor (compra) o cliente (venta)
+    float total;               // cantidad * precioUnitario
+    char fecha[11];            // Formato: YYYY-MM-DD
+    char descripcion[200];
+    DetalleVenta detalles[30]; // Permite hasta
+    int cantidaditems;
+    char tipo;                 // 'C' para compra, 'V' para venta
+    bool activo;            // Indica si la transacción ha sido cancelada
+    time_t fechaCreacion;      
+    time_t fechaUltimaModificacion;
+};
+
+struct Tienda {
+    char nombre[100];          // Nombre de la tienda
+    char rif[20];              // RIF de la tienda
+    // Acumuladores de Negocio (Dinámicos)
+    double caja;          // Dinero actual disponible para dar vuelto o gastos
+    double ingresosTotales;    // Todo lo recaudado por ventas
+    double egresosTotales;     // Todo lo pagado a proveedores
+    
+    // Contadores de Actividad
+    int contadorVentas;        // Cuántas facturas de venta se han emitido
+    int contadorCompras;       // Cuántas facturas de compra se han emitido
+    
+    // Auditoría
+    time_t fechaUltimaTransaccion; 
+    int versionSistema;
+};
+
+struct Header{
+    int cantidadRegistros;
+    int ProximoId;
+    int registrosActivos;
+    int version;
+};
+
+void actualizarCajaTienda(double monto, bool esIngreso) {
+    fstream file("tienda.bin", ios::in | ios::out | ios::binary);
+    if (!file) return;
+
+    Tienda info;
+    file.read((char*)&info, sizeof(Tienda));
+
+    if (esIngreso) {
+        info.ingresosTotales += monto;
+        info.caja += monto;
+        info.contadorVentas++;
+    } else {
+        info.egresosTotales += monto;
+        info.caja -= monto;
+        info.contadorCompras++;
+    }
+    
+    info.fechaUltimaTransaccion = time(0);
+
+    // Sobrescribimos el registro único
+    file.seekp(0, ios::beg);
+    file.write((char*)&info, sizeof(Tienda));
+    file.close();
+}
+
+void inicializartienda(){
+    ifstream archivotienda("tienda.bin", ios::binary);
+    if(!archivotienda){
+    Tienda tienda;
+        strcpy(tienda.nombre, "TECNOSTORE");
+        strcpy(tienda.rif, "J-12345678-9");
+        ofstream archivoNuevo("tienda.bin", ios::binary);
+        archivoNuevo.write((char*)&tienda, sizeof(Tienda));
+        archivoNuevo.close();
+        cout << "[SISTEMA]: Archivo tienda.bin creado con valores predeterminados." << endl;
+    } else {
+        archivotienda.close(); // Si existe, solo cerramos el archivo
+    }
+}
+
+void crearArchivoBinario(const char* nombreArchivo) {
+    ifstream archivotienda(nombreArchivo, ios::binary);
+    if (!archivotienda) {
+        // Si el archivo no existe, lo creamos con un Header vacío
+        Header nuevoHeader = {0, 1, 0, 1}; // 0 registros, próximo ID es 1
+        ofstream archivoNuevo(nombreArchivo, ios::binary);
+        archivoNuevo.write((char*)&nuevoHeader, sizeof(Header));
+        archivoNuevo.close();
+        cout << "[SISTEMA]: Inicializado " << nombreArchivo << " con Header limpio." << endl;
+    } else {
+        archivotienda.close();
+    }
+}
+
+// Lee el encabezado de cualquier archivo para obtener contadores y el próximo ID
+Header leerHeader(const char* nombreArchivo) {
+    Header h = {0, 1, 0, 1}; // Valores por defecto por seguridad
+    ifstream archivo(nombreArchivo, ios::binary);
+    if (archivo) {
+        archivo.read((char*)&h, sizeof(Header));
+        archivo.close();
+    }
+    return h;
+}
+
+
+void actualizarHeader(const char* nombreArchivo, Header h) {
+    fstream archivo(nombreArchivo, ios::in | ios::out | ios::binary);
+    if (archivo) {
+        archivo.seekp(0, ios::beg); // Nos movemos al puro inicio
+        archivo.write((char*)&h, sizeof(Header));
+        archivo.close();
+    }
+}
+
+void vaciarBuffer() {
+    if (cin.fail()) {
+        cin.clear(); // Limpia los flags de error de cin
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
+void pausarYlimpiarpantalla() {
+    cout << "Presione Enter para continuar...";
+    vaciarBuffer(); // Limpia el buffer de entrada
+    system("cls"); // Limpia la pantalla
+}
+int submenu_producto(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║        GESTIÓN DE PRODUCTOS              ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar nuevo producto" << endl;
+    cout << "2. Buscar producto" << endl;
+    cout << "3. Actualizar producto" << endl;
+    cout << "4. Actualizar stock manualmente" << endl;
+    cout << "5. Listar todos los productos" << endl;
+    cout << "6. Eliminar producto" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    vaciarBuffer();
+    return opcion;
+}
+int submenu_proveedor(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║       GESTIÓN DE PROVEEDORES              ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar proveedor" << endl;
+    cout << "2. Buscar proveedor" << endl;
+    cout << "3. Actualizar proveedor" << endl;
+    cout << "4. Listar proveedores" << endl;
+    cout << "5. Eliminar proveedor" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    vaciarBuffer();
+    return opcion;
+}
+int submenu_cliente(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║         GESTIÓN DE CLIENTES               ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar cliente" << endl;
+    cout << "2. Buscar cliente" << endl;
+    cout << "3. Actualizar cliente" << endl;
+    cout << "4. Listar clientes" << endl;
+    cout << "5. Eliminar cliente" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    vaciarBuffer();
+    return opcion;
+}
+int submenu_transaccion(){
+    int opcion;
+    cout << "╔═══════════════════════════════════════════╗" << endl;
+    cout << "║       GESTIÓN DE TRANSACCIONES            ║" << endl;
+    cout << "╚═══════════════════════════════════════════╝" << endl;
+    cout << "1. Registrar compra (a proveedor)" << endl;
+    cout << "2. Registrar venta (a cliente)" << endl;
+    cout << "3. Buscar transacciones" << endl;
+    cout << "4. Listar todas las transacciones" << endl;
+    cout << "5. Cancelar/Anular transacción" << endl;
+    cout << "0. Volver al menú principal" << endl;
+    cout << "Seleccione una opción: ";
+    cin >> opcion;
+    vaciarBuffer();
+    return opcion;
+}
+    void mostrarProveedor(int Id_a_buscar) {
+    
+    // Abrimos el archivo solo para lectura
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de proveedores." << endl;
+        return;
+    }
+
+    // 1. Leer el Header para saber cuántos registros hay que revisar
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Proveedor temp;
+    bool encontrado = false;
+
+    // 2. Búsqueda secuencial en el archivo
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        // Leemos el siguiente registro del archivo a la variable temp
+        archivo.read((char*)&temp, sizeof(Proveedor));
+
+        // 3. Validar si es el ID buscado y si NO está eliminado
+        if (temp.id == Id_a_buscar && temp.activo) { // En tu Fase 1 usabas 'activo'
+            encontrado = true;
+            
+            // 4. Formateo profesional de la salida
+            cout << "\n========================================" << endl;
+            cout << "          DATOS DEL PROVEEDOR           " << endl;
+            cout << "========================================" << endl;
+            cout << " ID:         " << temp.id << endl;
+            cout << " Nombre:     " << temp.nombre << endl;
+            cout << " RIF:        " << temp.rif << endl;
+            cout << " Telefono:   " << temp.telefono << endl;
+            cout << " Email:      " << temp.email << endl;
+            cout << " Direccion:  " << temp.direccion << endl;
+            cout << " Registro:   " << temp.fechaRegistro << endl;
+            cout << "========================================" << endl;
+            break; // Salimos del bucle al encontrarlo
+        }
+    }
+
+    if (!encontrado) {
+        cout << "\n[!] El proveedor con ID " << Id_a_buscar << " no existe o fue eliminado." << endl;
+    }
+    archivo.close(); // Cerramos el archivo inmediatamente
+}
+bool existeProveedor(int Id_a_buscar){
+    ifstream archivo("proveedores.bin", ios::binary);
+    
+    // Si el archivo no existe, obviamente no existe el proveedor
+    if (!archivo) return false;
+
+    // 1. Leer el Header para saber cuántos registros recorrer
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Proveedor temp;
+    
+    // 2. Recorrer los registros buscando el ID
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&temp, sizeof(Proveedor));
+
+        // 3. Verificamos ID y que esté ACTIVO (Borrado lógico)
+        if (temp.id == Id_a_buscar && temp.activo) {
+            archivo.close();
+            return true; // Lo encontramos
+        }
+    } 
+    archivo.close();
+    return false;
+}
+
+void obtenerNombreGenerico(const char* nombreArchivo, int idBuscar, char nombreDestino[100]) {
+    strcpy(nombreDestino, "No encontrado");
+    ifstream archivo(nombreArchivo, ios::binary);
+    if (!archivo) return;
+
+    Header h;
+    archivo.read((char*)&h, sizeof(Header));
+
+    // Usamos un bloque if/else para saber qué struct leer según el archivo
+    if (strcmp(nombreArchivo, "productos.bin") == 0) {
+        Producto temp;
+        while (archivo.read((char*)&temp, sizeof(Producto))) {
+            if (temp.id == idBuscar) { 
+                strcpy(nombreDestino, temp.nombre); 
+                break; 
+            }
+        }
+    } 
+    else if (strcmp(nombreArchivo, "clientes.bin") == 0) {
+        Cliente temp;
+        while (archivo.read((char*)&temp, sizeof(Cliente))) {
+            if (temp.id == idBuscar) { 
+                strcpy(nombreDestino, temp.nombre); 
+                break; 
+            }
+        }
+    } 
+    else if (strcmp(nombreArchivo, "proveedores.bin") == 0) {
+        Proveedor temp;
+        while (archivo.read((char*)&temp, sizeof(Proveedor))) {
+            if (temp.id == idBuscar) { 
+                strcpy(nombreDestino, temp.nombre); 
+                break; 
+            }
+        }
+    }
+
+    archivo.close();
+}
+
+int calcularStockActual(Producto p) {
+    int stock = (p.stockInicial + p.totalComprado) - p.totalVendido;
+    return stock;
+}
+
+bool existeCliente(int id_aBuscar){
+    ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) return false;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Cliente temp;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&temp, sizeof(Cliente));
+        if (temp.id == id_aBuscar && temp.activo) {
+            archivo.close();
+            return true;
+        }
+    }
+    archivo.close();
+    return false;
+}
+void mostrarFechaFormateada(time_t fechaRaw) {
+    struct tm *infoTiempo;
+    char buffer[20]; // Arreglo de char para la fecha
+
+    infoTiempo = localtime(&fechaRaw);
+
+    // Formato: DD/MM/AAAA HH:MM
+    strftime(buffer, 20, "%d/%m/%Y %H:%M", infoTiempo);
+    
+    cout << buffer; 
+}
+void mostrarcliente(int Id_a_buscar){
+   ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de clientes." << endl;
+        return;
+    }
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+    Cliente temp;
+    bool encontrado = false;
+    cout << "\n--- LISTA DE CLIENTES ---" << endl;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&temp, sizeof(Cliente));
+        if (temp.activo && temp.id == Id_a_buscar) {
+            encontrado = true;
+            cout << " ID: " << temp.id << " | Nombre: " << temp.nombre << " | Cédula/RIF: " << temp.cedula << endl;
+        }
+    }
+    if (!encontrado) {
+        cout << "\n[!] No hay clientes registrados." << endl;
+    }
+    archivo.close();
+}
+void mostrarTransaccion(int idBuscar) {
+    ifstream archivo("transacciones.bin", ios::binary);
+    if (!archivo) return;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+    Transaccion t;
+    bool encontrado = false;
+
+    while (archivo.read((char*)&t, sizeof(Transaccion))) {
+        if (t.id == idBuscar) {
+            encontrado = true;
+            char nombreRelacionado[100];
+
+            cout << "\n====================================================" << endl;
+            cout << "             DETALLE DE TRANSACCION #" << t.id << endl;
+            cout << "====================================================" << endl;
+            
+            if (t.tipo == 'V') {
+                cout << " TIPO: VENTA";
+                obtenerNombreGenerico("clientes.bin", t.idRelacionado, nombreRelacionado);
+            } else {
+                cout << " TIPO: COMPRA";
+                obtenerNombreGenerico("proveedores.bin", t.idRelacionado, nombreRelacionado);
+            }
+            
+            cout << " | ENTIDAD: " << nombreRelacionado << endl;
+            cout << " FECHA: " << t.fecha << " | DESC: " << t.descripcion << endl;
+            cout << "----------------------------------------------------" << endl;
+            cout << left << setw(8) << "ID" << setw(22) << "PRODUCTO" << setw(8) << "CANT" << setw(12) << "P. UNIT" << endl;
+            cout << "----------------------------------------------------" << endl;
+
+            // Recorrido de los detalles usando tu arreglo de 30
+            for (int j = 0; j < t.cantidaditems; j++) {
+                char nombreP[100];
+                obtenerNombreGenerico("productos.bin", t.detalles[j].idProducto, nombreP);
+
+                cout << left << setw(8) << t.detalles[j].idProducto 
+                     << setw(22) << nombreP
+                     << setw(8) << t.detalles[j].cantidad 
+                     << "$ " << fixed << setprecision(2) << t.detalles[j].precioUnitario << endl;
+            }
+
+            cout << "----------------------------------------------------" << endl;
+            cout << right << setw(40) << "TOTAL: $ " << t.total << endl;
+            
+            if (!t.activo) cout << "\n [ESTADO: ANULADA]" << endl;
+            cout << "====================================================" << endl;
+            break;
+        }
+    }
+    if (!encontrado) cout << "[!] Transaccion no hallada." << endl;
+    archivo.close();
+}
+void mostrarProducto(int idBuscar) {
+    ifstream archivo("productos.bin", ios::binary);
+    if (!archivo) return;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Producto p;
+    bool encontrado = false;
+
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&p, sizeof(Producto));
+
+        if (p.id == idBuscar) {
+            encontrado = true;
+
+            // LLAMADA A TUS NUEVAS FUNCIONES
+            int stockActual = calcularStockActual(p);
+            
+            char nombreProv[100];
+            obtenerNombreGenerico("proveedores.bin", p.idProveedor, nombreProv);
+
+            cout << "\n====================================================" << endl;
+            cout << "              FICHA DEL PRODUCTO #" << p.id << endl;
+            cout << "====================================================" << endl;
+            
+            if (p.activo == false) {
+                cout << " [!!!] ESTADO: INACTIVO [!!!]" << endl;
+            }
+
+            cout << " Nombre:       " << p.nombre << endl;
+            cout << " Proveedor:    " << nombreProv << endl; // Usamos la función
+            cout << "----------------------------------------------------" << endl;
+            cout << " STOCK ACTUAL: " << stockActual << " unidades" << endl; // Usamos la función
+            cout << " STOCK MINIMO: " << p.stockminimo << " unidades" << endl;
+
+            if (stockActual <= p.stockminimo) {
+                cout << " [ALERTA]: RECOMPRAR YA." << endl;
+            }
+            
+            cout << "====================================================" << endl;
+            break;
+        }
+    }
+    archivo.close();
+}
+
+bool validarFecha(const char* fecha) {
+    // 1. Validar longitud exacta (YYYY-MM-DD = 10 caracteres)
+    if (strlen(fecha) != 10) return false;
+
+    // 2. Validar formato de guiones: 2026-02-26
+    //                             0123456789
+    if (fecha[4] != '-' || fecha[7] != '-') return false;
+
+    // 3. Extraer valores numéricos (usando atoi o sscanf)
+    // Extraemos copiando a buffers temporales para evitar problemas
+    char strAnio[5], strMes[3], strDia[3];
+    strncpy(strAnio, fecha, 4); strAnio[4] = '\0';
+    strncpy(strMes, fecha + 5, 2); strMes[2] = '\0';
+    strncpy(strDia, fecha + 8, 2); strDia[2] = '\0';
+
+    int anio = atoi(strAnio);
+    int mes = atoi(strMes);
+    int dia = atoi(strDia);
+
+    // 4. Validaciones lógicas básicas
+    if (anio < 1900 || anio > 2100) return false; // Rango razonable
+    if (mes < 1 || mes > 12) return false;
+    if (dia < 1 || dia > 31) return false;
+
+    // 5. Validar días según el mes
+    int diasPorMes[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+    // Caso especial: Año Bisiesto
+    if ((anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0)) {
+        diasPorMes[1] = 29;
+    }
+
+    if (dia > diasPorMes[mes - 1]) return false;
+
+    return true;
+}
+
+bool tieneDatos(const char* nombreArchivo) {
+    ifstream archivo(nombreArchivo, ios::binary);
+    if (!archivo) return false; // El archivo ni siquiera existe
+
+    Header h;
+    archivo.read((char*)&h, sizeof(Header));
+    archivo.close();
+
+    // Retorna true solo si hay al menos un registro (activo o no, pero existe físicamente)
+    return h.cantidadRegistros > 0;
+}
+
+bool existeProducto(int idBuscar){
+    ifstream archivo("productos.bin", ios::binary);
+    if (!archivo) return false;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Producto temp;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&temp, sizeof(Producto));
+        if (temp.id == idBuscar && temp.activo) {
+            archivo.close();
+            return true;
+        }
+    }
+    archivo.close();
+    return false;
+}
+bool existeTransaccion(int idBuscar) {
+    ifstream archivo("transacciones.bin", ios::binary);
+    if (!archivo) return false;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Transaccion t;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&t, sizeof(Transaccion));
+        // Verificamos que el ID coincida y que NO sea un borrado lógico
+        if (t.id == idBuscar && t.activo) {
+            archivo.close();
+            return true;
+        }
+    }
+    archivo.close();
+    return false;
+}
+
+int buscartransaccionPorId(int id){
+   // Retorna un valor fuera de rango para indicar no encontrado
+}
+bool rifDuplicado(){
+   
+}
+int buscarProductoPorId(){
+     // Retorna un valor fuera de rango para indicar no encontrado
+}
+int buscarProveedorPorId(){
+    // Retorna un valor fuera de rango para indicar no encontrado
+}
+int buscarClientePorId(){
+    // Retorna un valor fuera de rango para indicar no encontrado
+}
+bool contieneSubstring(const char* texto, const char* busqueda){
+    if(texto == nullptr || busqueda == nullptr) return false;
+    int lenTexto = strlen(texto);
+    int lenBusqueda = strlen(busqueda);
+    if (lenBusqueda > lenTexto) return false;
+    for (int i = 0; i <= lenTexto - lenBusqueda; i++) {
+        bool encontrado = true;
+        for (int j = 0; j < lenBusqueda; j++) {
+            if (tolower(texto[i + j]) != tolower(busqueda[j])) {
+                encontrado = false;
+                break;
+            }
+        }
+        if (encontrado) return true;
+    }
+    return false;
+}
+void convertirAMinusculas(char* cadena){
+    if(cadena == nullptr) return;
+    for (int i = 0; cadena[i] != '\0'; i++) {
+        cadena[i] = tolower(cadena[i]);
+    }
+}
+int* buscarProductosPorNombre() {
+    
+}
+void crearProducto(){
+
+}
+void buscarProducto(){
+
+}
+void actualizarStock() {
+
+}
+void actualizarProducto(){
+
+}
+void listarProductos(){
+}
+void eliminarProducto() {
+
+}
+// Funciones CRUD - PROVEEDORES
+void crearProveedor(){
+
+}
+void buscarProveedor(){
+
+}
+void actualizarProveedor(){
+
+}
+void listarProveedores(){
+
+}
+void eliminarProveedor() {
+   
+}
+// Funciones CRUD - CLIENTES
+void crearCliente(){
+    
+}
+void buscarCliente(){
+
+    
+}
+void actualizarCliente(){
+    
+}
+void listarClientes(){
+   
+}
+void eliminarCliente(){
+
+}
+// Funciones de TRANSACCIONES
+void registrarCompra() {
+   
+}
+void registrarVenta(){
+
+}
+void buscarTransacciones(){
+   
+}
+void listarTransacciones() {
+   
+}
+void cancelarTransaccion() {
+
+}
+
+int main() {
+    // Configuración para caracteres especiales y FPS fijos
+    SetConsoleOutputCP(CP_UTF8);
+    
+    // 1. INICIALIZACIÓN DE ARCHIVOS
+    inicializartienda(); // Crea tienda.bin si no existe
+    crearArchivoBinario("productos.bin"); // Crea con Header
+    crearArchivoBinario("proveedores.bin");
+    crearArchivoBinario("clientes.bin");
+    crearArchivoBinario("transacciones.bin");
+
+    // 2. LECTURA DE DATOS DE LA TIENDA (La Fuente de Verdad)
+    Tienda miTienda;
+    ifstream fTienda("tienda.bin", ios::binary);
+    if (fTienda) {
+        fTienda.read((char*)&miTienda, sizeof(Tienda));
+        fTienda.close();
+    }
+
+    bool ejecutando = true;
+    int opcion, subOp;
+
+    do {
+        // Diseño de Menú Dinámico basado en la lectura del archivo
+        cout << "╔═══════════════════════════════════════════╗" << endl;
+        cout << "║      SISTEMA DE GESTIÓN DE INVENTARIO     ║" << endl;
+        cout << "║ Tienda: " << left << setw(33) << miTienda.nombre << " ║" << endl;
+        cout << "║ RIF:    " << left << setw(33) << miTienda.rif << " ║" << endl;
+        cout << "╚═══════════════════════════════════════════╝" << endl;
+        cout << "1. Gestión de Productos" << endl;
+        cout << "2. Gestión de Proveedores" << endl;
+        cout << "3. Gestión de Clientes" << endl;
+        cout << "4. Gestión de Transacciones" << endl;
+        cout << "5. Salir" << endl;
+        cout << "Seleccione una opción: ";
+        cin >> opcion;
+        vaciarBuffer();
+
+        switch (opcion) {
+            case 1:
+                do {
+                    subOp = submenu_producto();
+                    switch(subOp) {
+                        case 1: crearProducto(); break;
+                        case 2: if(tieneDatos("productos.bin")) buscarProducto(); else cout << "[!] No hay productos.\n"; break;
+                        case 3: actualizarProducto(); break;
+                        case 4: actualizarStock(); break;
+                        case 5: listarProductos(); break;
+                        case 6: eliminarProducto(); break;
+                    }
+                } while(subOp != 0);
+                break;
+
+            case 2:
+                do {
+                    subOp = submenu_proveedor();
+                    switch(subOp) {
+                        case 1: crearProveedor(); break;
+                        case 2: if(tieneDatos("proveedores.bin")) buscarProveedor(); else cout << "[!] No hay proveedores.\n"; break;
+                        case 3: actualizarProveedor(); break;
+                        case 4: listarProveedores(); break;
+                        case 5: eliminarProveedor(); break;
+                    }
+                } while(subOp != 0);
+                break;
+
+            case 3:
+                do {
+                    subOp = submenu_cliente();
+                    switch(subOp) {
+                        case 1: crearCliente(); break;
+                        case 2: if(tieneDatos("clientes.bin")) buscarCliente(); else cout << "[!] No hay clientes.\n"; break;
+                        case 3: actualizarCliente(); break;
+                        case 4: listarClientes(); break;
+                        case 5: eliminarCliente(); break;
+                    }
+                } while(subOp != 0);
+                break;
+
+            case 4:
+                do {
+                    subOp = submenu_transaccion();
+                    switch(subOp) {
+                        case 1: registrarCompra(); break;
+                        case 2: registrarVenta(); break;
+                        case 3: if(tieneDatos("transacciones.bin")) buscarTransacciones(); else cout << "[!] No hay facturas.\n"; break;
+                        case 4: listarTransacciones(); break;
+                        case 5: cancelarTransaccion(); break;
+                    }
+                } while(subOp != 0);
+                break;
+
+            case 5:
+                cout << "Cerrando sesión de " << miTienda.nombre << "..." << endl;
+                ejecutando = false;
+                break;
+
+            default:
+                cout << "[!] Opción inválida." << endl;
+                pausarYlimpiarpantalla();
+        }
+    } while (ejecutando);
+
+return 0;
+
+   
