@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <cstring>
 #include <fstream>
+#include <conio.h>
 using namespace std;   
 
 /*# REPÚBLICA BOLIVARIANA DE VENEZUELA
@@ -232,6 +233,7 @@ Se requiere un submenú para leer datos y generar estadísticas:
 ### 7.3 Documentación Técnica (`README_V2.md`)
 - Diagrama de las estructuras y sus tamaños en bytes (`sizeof`).
 - Manual de usuario sencillo. */
+/* ... (Comentarios del enunciado omitidos por brevedad, se asume que los mantienes) ... */
 
 struct Producto {
     int id;                    // Identificador único (autoincremental)
@@ -247,7 +249,6 @@ struct Producto {
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
     time_t fechaCreacion;      // Timestamp de creación
     time_t fechaUltimaModificacion; // Timestamp de última modificación
-    int garantia;
     bool activo;               // Indica si el producto está activo o inactivo (no eliminado físicamente)
 };
 
@@ -335,7 +336,7 @@ void actualizarCajaTienda(double monto, bool esIngreso) {
     if (!file) return;
 
     Tienda info;
-    file.read((char*)&info, sizeof(Tienda));
+    file.read(reinterpret_cast<char*>(&info), sizeof(Tienda));
 
     if (esIngreso) {
         info.ingresosTotales += monto;
@@ -351,7 +352,7 @@ void actualizarCajaTienda(double monto, bool esIngreso) {
 
     // Sobrescribimos el registro único
     file.seekp(0, ios::beg);
-    file.write((char*)&info, sizeof(Tienda));
+    file.write(reinterpret_cast<char*>(&info), sizeof(Tienda));
     file.close();
 }
 
@@ -362,7 +363,7 @@ void inicializartienda(){
         strcpy(tienda.nombre, "TECNOSTORE");
         strcpy(tienda.rif, "J-12345678-9");
         ofstream archivoNuevo("tienda.bin", ios::binary);
-        archivoNuevo.write((char*)&tienda, sizeof(Tienda));
+        archivoNuevo.write(reinterpret_cast<char*>(&tienda), sizeof(Tienda));
         archivoNuevo.close();
         cout << "[SISTEMA]: Archivo tienda.bin creado con valores predeterminados." << endl;
     } else {
@@ -376,7 +377,7 @@ void crearArchivoBinario(const char* nombreArchivo) {
         // Si el archivo no existe, lo creamos con un Header vacío
         Header nuevoHeader = {0, 1, 0, 1}; // 0 registros, próximo ID es 1
         ofstream archivoNuevo(nombreArchivo, ios::binary);
-        archivoNuevo.write((char*)&nuevoHeader, sizeof(Header));
+        archivoNuevo.write(reinterpret_cast<char*>(&nuevoHeader), sizeof(Header));
         archivoNuevo.close();
         cout << "[SISTEMA]: Inicializado " << nombreArchivo << " con Header limpio." << endl;
     } else {
@@ -389,7 +390,7 @@ Header leerHeader(const char* nombreArchivo) {
     Header h = {0, 1, 0, 1}; // Valores por defecto por seguridad
     ifstream archivo(nombreArchivo, ios::binary);
     if (archivo) {
-        archivo.read((char*)&h, sizeof(Header));
+        archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
         archivo.close();
     }
     return h;
@@ -400,7 +401,7 @@ void actualizarHeader(const char* nombreArchivo, Header h) {
     fstream archivo(nombreArchivo, ios::in | ios::out | ios::binary);
     if (archivo) {
         archivo.seekp(0, ios::beg); // Nos movemos al puro inicio
-        archivo.write((char*)&h, sizeof(Header));
+        archivo.write(reinterpret_cast<char*>(&h), sizeof(Header));
         archivo.close();
     }
 }
@@ -443,6 +444,7 @@ int submenu_proveedor(){
     cout << "3. Actualizar proveedor" << endl;
     cout << "4. Listar proveedores" << endl;
     cout << "5. Eliminar proveedor" << endl;
+    cout << "6. Restaurar proveedor eliminado" << endl;
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
@@ -481,52 +483,39 @@ int submenu_transaccion(){
     vaciarBuffer();
     return opcion;
 }
-    void mostrarProveedor(int Id_a_buscar) {
+
+// Retorna false si el usuario presionó la tecla ESC
+bool pedirTextoCancelable(const char* mensaje, char* destino, int tamano) {
+    cout << mensaje << " (o presione ESC para cancelar): ";
     
-    // Abrimos el archivo solo para lectura
-    ifstream archivo("proveedores.bin", ios::binary);
-    if (!archivo) {
-        cout << "[!] Error: No se pudo abrir el archivo de proveedores." << endl;
-        return;
-    }
+    int i = 0;
+    char tecla;
 
-    // 1. Leer el Header para saber cuántos registros hay que revisar
-    Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    while (true) {
+        tecla = _getch(); // Captura la tecla al instante sin esperar el Enter
 
-    Proveedor temp;
-    bool encontrado = false;
-
-    // 2. Búsqueda secuencial en el archivo
-    for (int i = 0; i < header.cantidadRegistros; i++) {
-        // Leemos el siguiente registro del archivo a la variable temp
-        archivo.read((char*)&temp, sizeof(Proveedor));
-
-        // 3. Validar si es el ID buscado y si NO está eliminado
-        if (temp.id == Id_a_buscar && temp.activo) { // En tu Fase 1 usabas 'activo'
-            encontrado = true;
-            
-            // 4. Formateo profesional de la salida
-            cout << "\n========================================" << endl;
-            cout << "          DATOS DEL PROVEEDOR           " << endl;
-            cout << "========================================" << endl;
-            cout << " ID:         " << temp.id << endl;
-            cout << " Nombre:     " << temp.nombre << endl;
-            cout << " RIF:        " << temp.rif << endl;
-            cout << " Telefono:   " << temp.telefono << endl;
-            cout << " Email:      " << temp.email << endl;
-            cout << " Direccion:  " << temp.direccion << endl;
-            cout << " Registro:   " << temp.fechaRegistro << endl;
-            cout << "========================================" << endl;
-            break; // Salimos del bucle al encontrarlo
+        if (tecla == 27) { // 27 es el código ASCII de 'Escape'
+            cout << "\n[!] Operación cancelada por el usuario." << endl;
+            return false; 
+        }
+        else if (tecla == '\r') { // '\r' es el código ASCII de 'Enter'
+            destino[i] = '\0'; // Cerramos la cadena de texto correctamente
+            cout << endl; // Bajamos de línea visualmente
+            return true;
+        }
+        else if (tecla == '\b' && i > 0) { // Manejo de la tecla 'Retroceso' (Borrar)
+            i--;
+            cout << "\b \b"; // Borra el carácter de la pantalla usando secuencias de escape
+        }
+        else if (i < tamano - 1 && tecla >= 32 && tecla <= 126) { 
+            // Solo aceptamos caracteres imprimibles (letras, números, espacios, símbolos)
+            destino[i] = tecla;
+            i++;
+            cout << tecla; // Imprimimos en pantalla la letra que acaba de tocar
         }
     }
-
-    if (!encontrado) {
-        cout << "\n[!] El proveedor con ID " << Id_a_buscar << " no existe o fue eliminado." << endl;
-    }
-    archivo.close(); // Cerramos el archivo inmediatamente
 }
+
 bool existeProveedor(int Id_a_buscar){
     ifstream archivo("proveedores.bin", ios::binary);
     
@@ -535,13 +524,13 @@ bool existeProveedor(int Id_a_buscar){
 
     // 1. Leer el Header para saber cuántos registros recorrer
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
 
     Proveedor temp;
     
     // 2. Recorrer los registros buscando el ID
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&temp, sizeof(Proveedor));
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
 
         // 3. Verificamos ID y que esté ACTIVO (Borrado lógico)
         if (temp.id == Id_a_buscar && temp.activo) {
@@ -553,18 +542,51 @@ bool existeProveedor(int Id_a_buscar){
     return false;
 }
 
+void mostrarProveedor(int Id_a_buscar) {
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) return;
+
+    Header header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
+
+    Proveedor temp;
+    
+    // Aquí NO usamos existeProveedor, porque ya estamos dentro del archivo.
+    // Simplemente buscamos el registro que coincida con el ID.
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
+
+        if (temp.id == Id_a_buscar && temp.activo) {
+            cout << "\n========================================" << endl;
+            cout << "          DATOS DEL PROVEEDOR           " << endl;
+            cout << "========================================" << endl;
+            cout << " ID:         " << temp.id << endl;
+            cout << " Nombre:     " << temp.nombre << endl;
+            cout << " RIF:        " << temp.rif << endl;
+            cout << " Telefono:   " << temp.telefono << endl;
+            cout << " Email:      " << temp.email << endl;
+            cout << " Direccion:  " << temp.direccion << endl;
+            cout << " Registro:   " << temp.fechaRegistro << endl;
+            cout << "========================================" << endl;
+            archivo.close();
+            return; // Salimos de la función apenas lo mostramos
+        }
+    }
+    archivo.close();
+}
+
 void obtenerNombreGenerico(const char* nombreArchivo, int idBuscar, char nombreDestino[100]) {
     strcpy(nombreDestino, "No encontrado");
     ifstream archivo(nombreArchivo, ios::binary);
     if (!archivo) return;
 
     Header h;
-    archivo.read((char*)&h, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
 
     // Usamos un bloque if/else para saber qué struct leer según el archivo
     if (strcmp(nombreArchivo, "productos.bin") == 0) {
         Producto temp;
-        while (archivo.read((char*)&temp, sizeof(Producto))) {
+        while (archivo.read(reinterpret_cast<char*>(&temp), sizeof(Producto))) {
             if (temp.id == idBuscar) { 
                 strcpy(nombreDestino, temp.nombre); 
                 break; 
@@ -573,7 +595,7 @@ void obtenerNombreGenerico(const char* nombreArchivo, int idBuscar, char nombreD
     } 
     else if (strcmp(nombreArchivo, "clientes.bin") == 0) {
         Cliente temp;
-        while (archivo.read((char*)&temp, sizeof(Cliente))) {
+        while (archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente))) {
             if (temp.id == idBuscar) { 
                 strcpy(nombreDestino, temp.nombre); 
                 break; 
@@ -582,7 +604,7 @@ void obtenerNombreGenerico(const char* nombreArchivo, int idBuscar, char nombreD
     } 
     else if (strcmp(nombreArchivo, "proveedores.bin") == 0) {
         Proveedor temp;
-        while (archivo.read((char*)&temp, sizeof(Proveedor))) {
+        while (archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor))) {
             if (temp.id == idBuscar) { 
                 strcpy(nombreDestino, temp.nombre); 
                 break; 
@@ -603,11 +625,11 @@ bool existeCliente(int id_aBuscar){
     if (!archivo) return false;
 
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
 
     Cliente temp;
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&temp, sizeof(Cliente));
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
         if (temp.id == id_aBuscar && temp.activo) {
             archivo.close();
             return true;
@@ -616,6 +638,7 @@ bool existeCliente(int id_aBuscar){
     archivo.close();
     return false;
 }
+
 void mostrarFechaFormateada(time_t fechaRaw) {
     struct tm *infoTiempo;
     char buffer[20]; // Arreglo de char para la fecha
@@ -627,6 +650,7 @@ void mostrarFechaFormateada(time_t fechaRaw) {
     
     cout << buffer; 
 }
+
 void mostrarcliente(int Id_a_buscar){
    ifstream archivo("clientes.bin", ios::binary);
     if (!archivo) {
@@ -634,12 +658,12 @@ void mostrarcliente(int Id_a_buscar){
         return;
     }
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
     Cliente temp;
     bool encontrado = false;
     cout << "\n--- LISTA DE CLIENTES ---" << endl;
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&temp, sizeof(Cliente));
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
         if (temp.activo && temp.id == Id_a_buscar) {
             encontrado = true;
             cout << " ID: " << temp.id << " | Nombre: " << temp.nombre << " | Cédula/RIF: " << temp.cedula << endl;
@@ -650,16 +674,17 @@ void mostrarcliente(int Id_a_buscar){
     }
     archivo.close();
 }
+
 void mostrarTransaccion(int idBuscar) {
     ifstream archivo("transacciones.bin", ios::binary);
     if (!archivo) return;
 
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
     Transaccion t;
     bool encontrado = false;
 
-    while (archivo.read((char*)&t, sizeof(Transaccion))) {
+    while (archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion))) {
         if (t.id == idBuscar) {
             encontrado = true;
             char nombreRelacionado[100];
@@ -704,18 +729,19 @@ void mostrarTransaccion(int idBuscar) {
     if (!encontrado) cout << "[!] Transaccion no hallada." << endl;
     archivo.close();
 }
+
 void mostrarProducto(int idBuscar) {
     ifstream archivo("productos.bin", ios::binary);
     if (!archivo) return;
 
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
 
     Producto p;
     bool encontrado = false;
 
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&p, sizeof(Producto));
+        archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
 
         if (p.id == idBuscar) {
             encontrado = true;
@@ -751,52 +777,86 @@ void mostrarProducto(int idBuscar) {
     archivo.close();
 }
 
-bool validarFecha(const char* fecha) {
-    // 1. Validar longitud exacta (YYYY-MM-DD = 10 caracteres)
-    if (strlen(fecha) != 10) return false;
+bool validarEmail(const char* email){
+    if(email == nullptr) return false;
+    const char* atPos = strchr(email, '@');
+    if (!atPos) return false; // No contiene '@'
+    
+    const char* dotPos = strchr(atPos, '.');
+    if (!dotPos) return false; // No contiene '.' después del '@'
+    
+    if (atPos == email || dotPos == atPos + 1 || dotPos == email + strlen(email) - 1) {
+        return false; // '@' no puede ser el primer carácter, '.' no puede estar justo después de '@' ni al final
+    }
+    
+    return true;
+    
+}
 
-    // 2. Validar formato de guiones: 2026-02-26
-    //                             0123456789
-    if (fecha[4] != '-' || fecha[7] != '-') return false;
+bool obtenerFechaActual(char* buffer) {
+    if (buffer == nullptr) return false;
+    
+    SYSTEMTIME st;
+    GetLocalTime(&st);
 
-    // 3. Extraer valores numéricos (usando atoi o sscanf)
-    // Extraemos copiando a buffers temporales para evitar problemas
-    char strAnio[5], strMes[3], strDia[3];
-    strncpy(strAnio, fecha, 4); strAnio[4] = '\0';
-    strncpy(strMes, fecha + 5, 2); strMes[2] = '\0';
-    strncpy(strDia, fecha + 8, 2); strDia[2] = '\0';
-
-    int anio = atoi(strAnio);
-    int mes = atoi(strMes);
-    int dia = atoi(strDia);
-
-    // 4. Validaciones lógicas básicas
-    if (anio < 1900 || anio > 2100) return false; // Rango razonable
-    if (mes < 1 || mes > 12) return false;
-    if (dia < 1 || dia > 31) return false;
-
-    // 5. Validar días según el mes
-    int diasPorMes[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-    // Caso especial: Año Bisiesto
-    if ((anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0)) {
-        diasPorMes[1] = 29;
+    // Validación de seguridad: El sistema no debería operar con fechas anteriores a su creación
+    if (st.wYear < 2026) {
+        cout << "\n[!] ERROR DE SISTEMA: La fecha detectada es " << st.wYear << "." << endl;
+        cout << "[!] El reloj de su PC parece estar desconfigurado." << endl;
+        cout << "[!] Por seguridad, no se pueden registrar datos con fechas antiguas." << endl;
+        return false;
     }
 
-    if (dia > diasPorMes[mes - 1]) return false;
-
+    sprintf(buffer, "%04d-%02d-%02d", st.wYear, st.wMonth, st.wDay);
     return true;
+}
+
+int pedirEntero(const char* mensaje) {
+    int numero;
+    while (true) {
+        cout << mensaje;
+        if (cin >> numero) {
+            // Si la lectura fue exitosa, limpiamos el resto del buffer (\n) y salimos
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            return numero;
+        } else {
+            // Si entró aquí, es porque el usuario metió una letra o símbolo
+            cout << "[!] Error: Debe ingresar un numero entero." << endl;
+            cin.clear(); // Limpia el estado de falla de cin
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Descarta la basura ingresada
+        }
+    }
+}
+
+void pedirSoloLetras(const char* mensaje, char* destino, int tamano) {
+    bool valido;
+    do {
+        valido = true;
+        cout << mensaje;
+        cin.getline(destino, tamano);
+
+        for (int i = 0; i < strlen(destino); i++) {
+            // isalpha revisa si es letra. También permitimos espacios ' '
+            if (!isalpha(destino[i]) && destino[i] != ' ') {
+                valido = false;
+                break;
+            }
+        }
+
+        if (!valido) {
+            cout << "[!] Error: No se permiten numeros o simbolos en este campo." << endl;
+        }
+    } while (!valido);
 }
 
 bool tieneDatos(const char* nombreArchivo) {
     ifstream archivo(nombreArchivo, ios::binary);
-    if (!archivo) return false; // El archivo ni siquiera existe
+    if (!archivo) return false;
 
     Header h;
-    archivo.read((char*)&h, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
     archivo.close();
 
-    // Retorna true solo si hay al menos un registro (activo o no, pero existe físicamente)
     return h.cantidadRegistros > 0;
 }
 
@@ -805,11 +865,11 @@ bool existeProducto(int idBuscar){
     if (!archivo) return false;
 
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
 
     Producto temp;
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&temp, sizeof(Producto));
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Producto));
         if (temp.id == idBuscar && temp.activo) {
             archivo.close();
             return true;
@@ -818,17 +878,17 @@ bool existeProducto(int idBuscar){
     archivo.close();
     return false;
 }
+
 bool existeTransaccion(int idBuscar) {
     ifstream archivo("transacciones.bin", ios::binary);
     if (!archivo) return false;
 
     Header header;
-    archivo.read((char*)&header, sizeof(Header));
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
 
     Transaccion t;
     for (int i = 0; i < header.cantidadRegistros; i++) {
-        archivo.read((char*)&t, sizeof(Transaccion));
-        // Verificamos que el ID coincida y que NO sea un borrado lógico
+        archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
         if (t.id == idBuscar && t.activo) {
             archivo.close();
             return true;
@@ -839,20 +899,108 @@ bool existeTransaccion(int idBuscar) {
 }
 
 int buscartransaccionPorId(int id){
-   // Retorna un valor fuera de rango para indicar no encontrado
+   ifstream archivo("transacciones.bin", ios::binary);
+    if (!archivo) return -1;
+
+    Header header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
+
+    Transaccion t;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+        if (t.id == id && t.activo) {
+            archivo.close();
+            return i; 
+        }
+    }
+    archivo.close();
+    return -1; 
 }
-bool rifDuplicado(){
-   
+
+bool rifDuplicado(const char* rifABuscar) {
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) return false;
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+    Proveedor temp;
+
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
+        
+        // Solo nos importa si el RIF coincide y el proveedor está ACTIVO
+        if (temp.activo && strcmp(temp.rif, rifABuscar) == 0) {
+            archivo.close();
+            return true; // Encontramos un conflicto activo
+        }
+    }
+    archivo.close();
+    return false; // No hay conflictos con proveedores activos
 }
-int buscarProductoPorId(){
-     // Retorna un valor fuera de rango para indicar no encontrado
+
+int buscarProductoPorId(int idBuscado) {
+    ifstream archivo("productos.bin", ios::binary);
+    if (!archivo) return -1;
+
+    Header header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
+
+    Producto p;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+        
+        if (p.id == idBuscado && p.activo) {
+            archivo.close();
+            return i; 
+        }
+    }
+    archivo.close();
+    return -1;
 }
-int buscarProveedorPorId(){
-    // Retorna un valor fuera de rango para indicar no encontrado
+
+int buscarIndiceProveedor(int idABuscar, bool soloActivos = true) {
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) return -1;
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+    Proveedor temp;
+
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
+
+        if (temp.id == idABuscar) {
+            // Si solo queremos activos y está en false, ignoramos y seguimos.
+            // Si NO nos importa el estado (soloActivos = false), devolvemos el índice.
+            if (!soloActivos || temp.activo) {
+                archivo.close();
+                return i;
+            }
+        }
+    }
+    archivo.close();
+    return -1;
 }
-int buscarClientePorId(){
-    // Retorna un valor fuera de rango para indicar no encontrado
+
+int buscarClientePorId(int idBuscado){
+    ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) return -1; 
+
+    Header header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
+
+    Cliente c;
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&c), sizeof(Cliente));
+        if (c.id == idBuscado && c.activo) {
+            archivo.close();
+            return i; 
+        }
+    }
+    archivo.close();
+    return -1; 
 }
+
 bool contieneSubstring(const char* texto, const char* busqueda){
     if(texto == nullptr || busqueda == nullptr) return false;
     int lenTexto = strlen(texto);
@@ -870,89 +1018,484 @@ bool contieneSubstring(const char* texto, const char* busqueda){
     }
     return false;
 }
+
 void convertirAMinusculas(char* cadena){
     if(cadena == nullptr) return;
     for (int i = 0; cadena[i] != '\0'; i++) {
         cadena[i] = tolower(cadena[i]);
     }
 }
-int* buscarProductosPorNombre() {
-    
-}
-void crearProducto(){
 
-}
-void buscarProducto(){
+void listarProveedoresEliminados() {
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) return;
 
-}
-void actualizarStock() {
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+    Proveedor temp;
+    bool hayEliminados = false;
 
-}
-void actualizarProducto(){
+    cout << "\n--- PROVEEDORES EN PAPELERA (INACTIVOS) ---" << endl;
+    cout << left << setw(5) << "ID" << setw(30) << "NOMBRE" << setw(15) << "RIF" << endl;
+    cout << "--------------------------------------------------------" << endl;
 
-}
-void listarProductos(){
-}
-void eliminarProducto() {
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
+        if (!temp.activo) { // Solo mostramos los que tienen activo == false
+            hayEliminados = true;
+            cout << left << setw(5) << temp.id << setw(30) << temp.nombre << setw(15) << temp.rif << endl;
+        }
+    }
 
+    if (!hayEliminados) cout << "[!] No hay proveedores para restaurar." << endl;
+    archivo.close();
 }
+
+int buscarProductosPorNombre(const char* nombreBusqueda, int idsEncontrados[100]) {
+    ifstream archivo("productos.bin", ios::binary);
+    if (!archivo) return 0;
+
+    Header header;
+    archivo.read((char*)&header, sizeof(Header));
+
+    Producto p;
+    int contador = 0;
+
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read((char*)&p, sizeof(Producto));
+
+        // Usamos la función contieneSubstring que ya tienes en tu código
+        if (p.activo && contieneSubstring(p.nombre, nombreBusqueda)) {
+            idsEncontrados[contador] = p.id;
+            contador++;
+            
+            // Límite de seguridad para no desbordar el arreglo de IDs
+            if (contador >= 100) break;
+        }
+    }
+
+    archivo.close();
+    return contador; // Retornamos cuántos encontramos
+}
+
+void crearProducto(){}
+void buscarProducto(){}
+void actualizarStock(){}
+void actualizarProducto(){}
+void listarProductos(){}
+void eliminarProducto(){}
+
 // Funciones CRUD - PROVEEDORES
-void crearProveedor(){
+void crearProveedor() {
+    Header h = leerHeader("proveedores.bin");
+    Proveedor nuevo;
+    char confirmacion;
+    char temp[200]; // Buffer temporal para las entradas
+    if (!obtenerFechaActual(nuevo.fechaRegistro)) {
+        cout << "\n[i] Sugerencia: Verifique la configuracion de fecha y hora en Windows." << endl;
+        pausarYlimpiarpantalla();
+        return; // Volver al menú de proveedores sin romper el programa
+    }
+    nuevo.id = h.ProximoId;
+    cout << "\n--- REGISTRO DE PROVEEDOR (ID: " << nuevo.id << ") ---" << endl;
 
+    // 1. Nombre con opción de cancelar
+    if (!pedirTextoCancelable("Nombre del Proveedor", nuevo.nombre, 100)) return;
+
+    // 2. RIF con validación de duplicados y cancelación
+    do {
+        if (!pedirTextoCancelable("RIF (Ej: J-12345678-9)", nuevo.rif, 20)) return;
+        
+        if (rifDuplicado(nuevo.rif)) {
+            cout << "[!] Error: Este RIF ya está registrado por otro proveedor." << endl;
+        }
+    } while (rifDuplicado(nuevo.rif));
+
+    // 3. Teléfono
+    if (!pedirTextoCancelable("Teléfono", nuevo.telefono, 20)) return;
+
+    // 4. Email con validación de formato
+    do {
+        if (!pedirTextoCancelable("Email", nuevo.email, 100)) return;
+        
+        if (!validarEmail(nuevo.email)) {
+            cout << "[!] Formato de email inválido." << endl;
+        }
+    } while (!validarEmail(nuevo.email));
+
+    // 5. Dirección
+    if (!pedirTextoCancelable("Dirección", nuevo.direccion, 200)) return;
+    // --- Inicialización de Auditoría ---
+    nuevo.totalSuministros = 0;
+    nuevo.totalPagado = 0;
+    nuevo.activo = true;
+    nuevo.fechaCreacion = time(0);
+    nuevo.fechaUltimaModificacion = time(0);
+
+    // --- Resumen y Confirmación Final ---
+    cout << "\n========================================" << endl;
+    cout << "       CONFIRMAR DATOS DEL REGISTRO      " << endl;
+    cout << "========================================" << endl;
+    cout << " Nombre:    " << nuevo.nombre << endl;
+    cout << " RIF:       " << nuevo.rif << endl;
+    cout << " Email:     " << nuevo.email << endl;
+    cout << " Registro:  " << nuevo.fechaRegistro << " (Fecha de Sistema)" << endl;
+    cout << "----------------------------------------" << endl;
+    cout << "¿Desea guardar este proveedor? (S/N): ";
+    
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) != 'S') {
+        cout << "[!] Registro cancelado. No se realizaron cambios." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // --- Escritura Física en Archivo ---
+    ofstream archivo("proveedores.bin", ios::binary | ios::app);
+    if (!archivo) {
+        cout << "[!] Error crítico al abrir el archivo." << endl;
+        return;
+    }
+    archivo.write(reinterpret_cast<const char*>(&nuevo), sizeof(Proveedor));
+    archivo.close();
+
+    // --- Actualización del Header ---
+    h.cantidadRegistros++;
+    h.ProximoId++;
+    h.registrosActivos++;
+    actualizarHeader("proveedores.bin", h);
+
+    cout << "\n[OK] Proveedor '" << nuevo.nombre << "' registrado con éxito." << endl;
+    pausarYlimpiarpantalla();
 }
 void buscarProveedor(){
-
+        int idBuscar = pedirEntero("Ingrese el ID del proveedor a buscar: ");
+        if (!existeProveedor(idBuscar)) {
+            cout << "\n[!] El proveedor con ID " << idBuscar << " no existe o fue eliminado." << endl;
+            pausarYlimpiarpantalla();
+            return;
+        }
+        mostrarProveedor(idBuscar);
+        pausarYlimpiarpantalla();
 }
-void actualizarProveedor(){
+void actualizarProveedor() {
+    int idBuscar = pedirEntero("Ingrese el ID del proveedor a actualizar: ");
+    
+    int indice = buscarIndiceProveedor(idBuscar);
+    if (indice == -1) {
+        cout << "\n[!] El proveedor con ID " << idBuscar << " no existe o fue eliminado." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
 
+    // --- AQUÍ ESTÁ EL MENSAJE QUE PEDISTE ---
+    cout << "\n--- PROVEEDOR ACTUAL ---" << endl;
+    mostrarProveedor(idBuscar);
+    cout << "------------------------\n" << endl;
+
+    fstream archivo("proveedores.bin", ios::in | ios::out | ios::binary);
+    if (!archivo) return;
+
+    long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
+    archivo.seekg(posicion, ios::beg);
+    
+    Proveedor p;
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Proveedor));
+
+    int opcion;
+    cout << "¿Qué desea modificar?" << endl;
+    cout << "1. Nombre\n2. Teléfono\n3. Email\n4. Dirección\n5. Rif\n 0. Cancelar todo\nSeleccione: ";
+    cin >> opcion;
+    vaciarBuffer();
+
+    char entradaTemp[200]; // Variable temporal para no dañar los datos originales si cancelan
+
+    switch(opcion) {
+        case 1: 
+            // Usamos nuestra nueva función. Si retorna false, cancelamos.
+            if (!pedirTextoCancelable("Nuevo Nombre", entradaTemp, 100)) {
+                cout << "\n[!] Operacion cancelada. No se guardaron cambios." << endl;
+                archivo.close(); return;
+            }
+            strcpy(p.nombre, entradaTemp);
+            break;
+            
+        case 2: 
+            if (!pedirTextoCancelable("Nuevo Teléfono", entradaTemp, 20)) {
+                cout << "\n[!] Operacion cancelada." << endl;
+                archivo.close(); return;
+            }
+            strcpy(p.telefono, entradaTemp);
+            break;
+            
+        case 3: 
+            do {
+                if (!pedirTextoCancelable("Nuevo Email", entradaTemp, 100)) {
+                    cout << "\n[!] Operacion cancelada." << endl;
+                    archivo.close(); return;
+                }
+            } while (!validarEmail(entradaTemp)); // Valida solo si no canceló
+            strcpy(p.email, entradaTemp);
+            break;
+            
+        case 4: 
+            if (!pedirTextoCancelable("Nueva Dirección", entradaTemp, 200)) {
+                cout << "\n[!] Operacion cancelada." << endl;
+                archivo.close(); return;
+            }
+            strcpy(p.direccion, entradaTemp);
+            break;
+            
+        case 5:
+            if (!pedirTextoCancelable("Nuevo RIF", entradaTemp, 20)) {
+                cout << "\n[!] Operacion cancelada." << endl;
+                archivo.close(); return;
+            }
+            // Verificar que el RIF no esté duplicado
+            if (rifDuplicado(entradaTemp)) {
+                cout << "\n[!] No se puede actualizar el RIF porque ya está siendo usado por otro proveedor activo." << endl;
+                archivo.close(); return;
+            }
+            strcpy(p.rif, entradaTemp);
+            break;
+
+        case 0: 
+            archivo.close(); return;
+            
+        default: 
+            cout << "Opción inválida."; archivo.close(); return;
+    }
+
+    p.fechaUltimaModificacion = time(0);
+
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&p), sizeof(Proveedor));
+    
+    archivo.close();
+    cout << "\n[OK] Proveedor actualizado correctamente." << endl;
+    pausarYlimpiarpantalla();
 }
-void listarProveedores(){
+void listarProveedores() {
+    ifstream archivo("proveedores.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de proveedores." << endl;
+        return;
+    }
 
+    Header header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(Header));
+
+    // Si el Header dice que hay 0 registros, ni siquiera entramos al bucle
+    if (header.cantidadRegistros == 0) {
+        cout << "\n[!] No hay proveedores registrados en el sistema." << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    Proveedor temp;
+    bool encontrado = false;
+
+    // Encabezado de la tabla
+    cout << "\n==========================================================================================" << endl;
+    cout << "                             LISTADO DE PROVEEDORES REGISTRADOS                           " << endl;
+    cout << "==========================================================================================" << endl;
+    cout << left << setw(5)  << "ID" 
+         << setw(30) << "NOMBRE" 
+         << setw(15) << "RIF" 
+         << setw(15) << "TELEFONO" 
+         << setw(15) << "REGISTRO" << endl;
+    cout << "------------------------------------------------------------------------------------------" << endl;
+
+    for (int i = 0; i < header.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Proveedor));
+
+        // Solo mostramos los que no tienen borrado lógico (activo == true)
+        if (temp.activo) {
+            encontrado = true;
+            cout << left << setw(5)  << temp.id 
+                 << setw(30) << temp.nombre 
+                 << setw(15) << temp.rif 
+                 << setw(15) << temp.telefono 
+                 << setw(15) << temp.fechaRegistro << endl;
+        }
+    }
+
+    if (!encontrado) {
+        cout << "\n[!] Todos los registros existentes han sido marcados como eliminados." << endl;
+    }
+
+    cout << "==========================================================================================" << endl;
+    cout << " Total de registros activos: " << header.registrosActivos << endl;
+    cout << "==========================================================================================" << endl;
+
+    archivo.close();
+    pausarYlimpiarpantalla();
 }
 void eliminarProveedor() {
-   
+    int idEliminar = pedirEntero("Ingrese el ID del proveedor a eliminar: ");
+
+    // 1. Validar si existe antes de intentar cualquier cosa
+    int indice = buscarIndiceProveedor(idEliminar);
+    if (indice == -1) {
+        cout << "\n[!] El proveedor con ID " << idEliminar << " no existe o ya fue eliminado." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 2. Mostrar lo que se va a eliminar para evitar errores
+    cout << "\n--- PROVEEDOR ENCONTRADO ---" << endl;
+    mostrarProveedor(idEliminar);
+    cout << "----------------------------" << endl;
+
+    // 3. Confirmación con soporte para ESC
+    cout << "¿Está seguro de que desea eliminar este registro? (S: Confirmar / ESC: Cancelar): ";
+    
+    char tecla;
+    while (true) {
+        tecla = _getch();
+        if (tecla == 27) { // Tecla ESC
+            cout << "\n[!] Operación de eliminación cancelada por el usuario." << endl;
+            pausarYlimpiarpantalla();
+            return;
+        }
+        if (toupper(tecla) == 'S') {
+            cout << "S" << endl;
+            break; 
+        }
+        if (toupper(tecla) == 'N') {
+            cout << "N" << endl;
+            cout << "\n[!] Eliminación cancelada." << endl;
+            pausarYlimpiarpantalla();
+            return;
+        }
+    }
+
+    // 4. Proceso de Borrado Lógico (Acceso Aleatorio)
+    fstream archivo("proveedores.bin", ios::in | ios::out | ios::binary);
+    if (!archivo) {
+        cout << "[!] Error al acceder al archivo de datos." << endl;
+        return;
+    }
+
+    // Calculamos la posición exacta
+    long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
+    archivo.seekg(posicion, ios::beg);
+
+    Proveedor p;
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Proveedor));
+
+    // Cambiamos el estado y actualizamos auditoría
+    p.activo = false;
+    p.fechaUltimaModificacion = time(0);
+
+    // Sobrescribimos el registro
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&p), sizeof(Proveedor));
+    archivo.close();
+
+    // 5. ACTUALIZAR EL HEADER (Crucial: restamos uno a los activos)
+    Header h = leerHeader("proveedores.bin");
+    h.registrosActivos--; 
+    actualizarHeader("proveedores.bin", h);
+
+    cout << "\n[OK] Proveedor eliminado lógicamente del sistema." << endl;
+    pausarYlimpiarpantalla();
 }
+
+void restaurarProveedor() {
+    Header h = leerHeader("proveedores.bin");
+    
+    // 1. Validación de papelera vacía
+    if (h.cantidadRegistros == h.registrosActivos) {
+        cout << "\n[i] No hay proveedores eliminados para restaurar." << endl;
+        cout << "Presione Enter para continuar...";
+        _getch();
+        return; 
+    }
+
+    listarProveedoresEliminados();
+    int idIngresado = pedirEntero("\nID a restaurar: ");
+
+    // Buscamos el índice ignorando el estado (soloActivos = false)
+    int indice = buscarIndiceProveedor(idIngresado, false);
+
+    if (indice == -1) {
+        cout << "[!] ID no existe." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    fstream archivo("proveedores.bin", ios::in | ios::out | ios::binary);
+    long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
+    archivo.seekg(posicion, ios::beg);
+
+    Proveedor p;
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Proveedor));
+
+    if (p.activo) {
+        cout << "[!] El proveedor ya esta activo." << endl;
+        archivo.close();
+        return;
+    }
+
+    // --- EL BLOQUE DE SEGURIDAD CRÍTICO ---
+    // Antes de restaurar, verificamos si su RIF ya lo tiene OTRO proveedor activo
+    if (rifDuplicado(p.rif)) { 
+        cout << "\n[!] ERROR DE INTEGRIDAD:" << endl;
+        cout << "[!] No se puede restaurar a '" << p.nombre << "'" << endl;
+        cout << "[!] El RIF " << p.rif << " ya esta siendo usado por otro proveedor activo." << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // Si pasó la validación, procedemos
+    cout << "¿Confirmar restauracion de " << p.nombre << "? (S/N): ";
+    char confirm = _getch();
+    if (toupper(confirm) != 'S') {
+        archivo.close();
+        return;
+    }
+
+    p.activo = true;
+    p.fechaUltimaModificacion = time(0);
+
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&p), sizeof(Proveedor));
+    archivo.close();
+
+    // Actualizar Header
+    h.registrosActivos++;
+    actualizarHeader("proveedores.bin", h);
+
+    cout << "\n[OK] Proveedor restaurado sin conflictos." << endl;
+    pausarYlimpiarpantalla();
+}
+
 // Funciones CRUD - CLIENTES
-void crearCliente(){
-    
-}
-void buscarCliente(){
+void crearCliente(){}
+void buscarCliente(){}
+void actualizarCliente(){}
+void listarClientes(){}
+void eliminarCliente(){}
 
-    
-}
-void actualizarCliente(){
-    
-}
-void listarClientes(){
-   
-}
-void eliminarCliente(){
-
-}
 // Funciones de TRANSACCIONES
-void registrarCompra() {
-   
-}
-void registrarVenta(){
-
-}
-void buscarTransacciones(){
-   
-}
-void listarTransacciones() {
-   
-}
-void cancelarTransaccion() {
-
-}
+void registrarCompra(){}
+void registrarVenta(){}
+void buscarTransacciones(){}
+void listarTransacciones(){}
+void cancelarTransaccion(){}
 
 int main() {
     // Configuración para caracteres especiales y FPS fijos
     SetConsoleOutputCP(CP_UTF8);
     
     // 1. INICIALIZACIÓN DE ARCHIVOS
-    inicializartienda(); // Crea tienda.bin si no existe
-    crearArchivoBinario("productos.bin"); // Crea con Header
+    inicializartienda(); 
+    crearArchivoBinario("productos.bin"); 
     crearArchivoBinario("proveedores.bin");
     crearArchivoBinario("clientes.bin");
     crearArchivoBinario("transacciones.bin");
@@ -961,7 +1504,7 @@ int main() {
     Tienda miTienda;
     ifstream fTienda("tienda.bin", ios::binary);
     if (fTienda) {
-        fTienda.read((char*)&miTienda, sizeof(Tienda));
+        fTienda.read(reinterpret_cast<char*>(&miTienda), sizeof(Tienda));
         fTienda.close();
     }
 
@@ -969,7 +1512,6 @@ int main() {
     int opcion, subOp;
 
     do {
-        // Diseño de Menú Dinámico basado en la lectura del archivo
         cout << "╔═══════════════════════════════════════════╗" << endl;
         cout << "║      SISTEMA DE GESTIÓN DE INVENTARIO     ║" << endl;
         cout << "║ Tienda: " << left << setw(33) << miTienda.nombre << " ║" << endl;
@@ -1008,6 +1550,7 @@ int main() {
                         case 3: actualizarProveedor(); break;
                         case 4: listarProveedores(); break;
                         case 5: eliminarProveedor(); break;
+                        case 6: restaurarProveedor(); break;
                     }
                 } while(subOp != 0);
                 break;
@@ -1049,6 +1592,6 @@ int main() {
         }
     } while (ejecutando);
 
-return 0;
-
+    return 0;
+}
    
