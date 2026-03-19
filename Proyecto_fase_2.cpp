@@ -425,9 +425,8 @@ int submenu_producto(){
     cout << "1. Registrar nuevo producto" << endl;
     cout << "2. Buscar producto" << endl;
     cout << "3. Actualizar producto" << endl;
-    cout << "4. Actualizar stock manualmente" << endl;
-    cout << "5. Listar todos los productos" << endl;
-    cout << "6. Eliminar producto" << endl;
+    cout << "4. Listar todos los productos" << endl;
+    cout << "5. Eliminar producto" << endl;
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
@@ -938,6 +937,34 @@ bool rifDuplicado(const char* rifABuscar) {
     return false; // No hay conflictos con proveedores activos
 }
 
+bool pedirEnteroCancelable(const char* etiqueta, int &valor) {
+    cout << etiqueta << ": ";
+    string entrada = "";
+    char c;
+    while (true) {
+        c = getch();
+        if (c == 27) { // ESC
+            cout << " [CANCELADO]" << endl;
+            return false; 
+        }
+        if (c == 13) { // ENTER
+            cout << endl;
+            break;
+        }
+        if (isdigit(c)) {
+            cout << c;
+            entrada += c;
+        }
+        if (c == 8 && entrada.length() > 0) { // Backspace
+            cout << "\b \b";
+            entrada.pop_back();
+        }
+    }
+    if (entrada == "") valor = 0;
+    else valor = stoi(entrada);
+    return true;
+}
+
 int buscarProductoPorId(int idBuscado) {
     ifstream archivo("productos.bin", ios::binary);
     if (!archivo) return -1;
@@ -1078,12 +1105,252 @@ int buscarProductosPorNombre(const char* nombreBusqueda, int idsEncontrados[100]
     return contador; // Retornamos cuántos encontramos
 }
 
-void crearProducto(){}
-void buscarProducto(){}
-void actualizarStock(){}
-void actualizarProducto(){}
-void listarProductos(){}
-void eliminarProducto(){}
+void crearProducto() {
+    Header h = leerHeader("productos.bin");
+    Producto nuevo;
+    char confirmacion;
+    char nombreProveedor[100] = "";
+
+    if (!obtenerFechaActual(nuevo.fechaRegistro)) return;
+
+    nuevo.id = h.ProximoId;
+    cout << "\n--- REGISTRO DE PRODUCTO (ID: " << nuevo.id << ") ---" << endl;
+    cout << "(ESC para cancelar en cualquier campo)" << endl;
+
+    if (!pedirTextoCancelable("Codigo", nuevo.codigo, 20)) return;
+    if (!pedirTextoCancelable("Nombre", nuevo.nombre, 100)) return;
+    if (!pedirTextoCancelable("Descripcion", nuevo.descripcion, 200)) return;
+
+    bool idValido = false;
+    do {
+        if (!pedirEnteroCancelable("ID del Proveedor", nuevo.idProveedor)) return;
+
+        if (existeProveedor(nuevo.idProveedor)) {
+            obtenerNombreGenerico("proveedores.bin", nuevo.idProveedor, nombreProveedor);
+            cout << "[OK] Proveedor vinculado: " << nombreProveedor << endl;
+            idValido = true;
+        } else {
+            cout << "[!] El ID " << nuevo.idProveedor << " no existe. Reintente o presione ESC." << endl;
+        }
+    } while (!idValido);
+
+    int tempPrecio, tempStock, tempMin;
+    
+    if (!pedirEnteroCancelable("Precio unitario ($)", tempPrecio)) return;
+    nuevo.precio = (float)tempPrecio;
+
+    if (!pedirEnteroCancelable("Stock Inicial", nuevo.stockInicial)) return;
+    
+    if (!pedirEnteroCancelable("Stock Minimo", nuevo.stockminimo)) return;
+
+    nuevo.totalVendido = 0;
+    nuevo.totalComprado = 0;
+    nuevo.activo = true;
+    nuevo.fechaCreacion = time(0);
+    nuevo.fechaUltimaModificacion = time(0);
+
+    cout << "\n==================================================" << endl;
+    cout << "          CONFIRMAR DATOS DEL PRODUCTO            " << endl;
+    cout << "==================================================" << endl;
+    cout << " PRODUCTO:  " << nuevo.nombre << endl;
+    cout << " PROVEEDOR: " << nombreProveedor << endl;
+    cout << " PRECIO:    $ " << nuevo.precio << endl;
+    cout << " STOCK:     " << nuevo.stockInicial << endl;
+    cout << "==================================================" << endl;
+    cout << "¿Guardar registro? (S/N): ";
+    
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        ofstream archivo("productos.bin", ios::binary | ios::app);
+        if (archivo) {
+            archivo.write(reinterpret_cast<const char*>(&nuevo), sizeof(Producto));
+            archivo.close();
+
+            h.cantidadRegistros++;
+            h.ProximoId++;
+            h.registrosActivos++;
+            actualizarHeader("productos.bin", h);
+            cout << "\n[OK] Guardado exitosamente." << endl;
+        }
+    } else {
+        cout << "\n[!] Registro cancelado." << endl;
+    }
+    pausarYlimpiarpantalla();
+}
+void buscarProducto(){
+    int idBuscar = pedirEntero("Ingrese el ID del producto a buscar: ");
+    if (!existeProducto(idBuscar)) {
+        cout << "\n[!] El producto con ID " << idBuscar << " no existe o fue eliminado." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+    mostrarProducto(idBuscar);
+    pausarYlimpiarpantalla();
+}
+void actualizarProducto() {
+    int idBuscar = pedirEntero("Ingrese el ID del producto a actualizar: ");
+    
+    int indice = buscarProductoPorId(idBuscar);
+    if (indice == -1) {
+        cout << "\n[!] El producto con ID " << idBuscar << " no existe o esta inactivo." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    fstream archivo("productos.bin", ios::in | ios::out | ios::binary);
+    if (!archivo) return;
+
+    long posicion = sizeof(Header) + (indice * sizeof(Producto));
+    archivo.seekg(posicion, ios::beg);
+    
+    Producto p;
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+    cout << "\n--- EDITANDO: " << p.nombre << " ---" << endl;
+    cout << "1. Nombre\n2. Descripcion\n3. Precio\n4. Stock Minimo\n0. Cancelar\nSeleccione: ";
+    int opcion;
+    cin >> opcion;
+    vaciarBuffer();
+
+    char tempStr[200];
+    bool modificado = true;
+
+    switch(opcion) {
+        case 1: 
+            if (pedirTextoCancelable("Nuevo Nombre", tempStr, 100)) strcpy(p.nombre, tempStr);
+            else modificado = false;
+            break;
+        case 2: 
+            if (pedirTextoCancelable("Nueva Descripcion", tempStr, 200)) strcpy(p.descripcion, tempStr);
+            else modificado = false;
+            break;
+        case 3: 
+            cout << "Nuevo Precio ($): "; cin >> p.precio; vaciarBuffer();
+            break;
+        case 4: 
+            p.stockminimo = pedirEntero("Nuevo Stock Minimo: ");
+            break;
+        case 0: 
+            modificado = false;
+            break;
+        default: 
+            cout << "[!] Opcion invalida."; 
+            modificado = false;
+    }
+
+    if (modificado) {
+        p.fechaUltimaModificacion = time(0);
+        archivo.seekp(posicion, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+        cout << "\n[OK] Producto actualizado correctamente." << endl;
+    }
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+void listarProductos() {
+    ifstream archivo("productos.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error al abrir el archivo de productos." << endl;
+        return;
+    }
+
+    Header h = leerHeader("productos.bin");
+    if (h.registrosActivos == 0) {
+        cout << "\n[!] No hay productos registrados para mostrar." << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    cout << "\n" << string(110, '=') << endl;
+    cout << setw(5)  << "ID" 
+         << setw(12) << "Codigo" 
+         << setw(25) << "Nombre" 
+         << setw(10) << "Precio" 
+         << setw(8)  << "Stock" 
+         << setw(10) << "Minimo" 
+         << setw(25) << "Proveedor" << endl;
+    cout << string(110, '-') << endl;
+
+    archivo.seekg(sizeof(Header), ios::beg);
+    
+    Producto p;
+    char nombreProv[100];
+
+    while (archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto))) {
+        if (p.activo) {
+            obtenerNombreGenerico("proveedores.bin", p.idProveedor, nombreProv);
+
+            cout << setw(5)  << p.id 
+                 << setw(12) << p.codigo 
+                 << setw(25) << (strlen(p.nombre) > 22 ? string(p.nombre).substr(0, 20) + ".." : p.nombre)
+                 << setw(10) << fixed << setprecision(2) << p.precio 
+                 << setw(8)  << p.stockInicial 
+                 << setw(10) << p.stockminimo 
+                 << setw(25) << nombreProv;
+
+
+            if (p.stockInicial <= p.stockminimo) {
+                cout << " [!] CRITICO";
+            }
+            cout << endl;
+        }
+    }
+
+    cout << string(110, '=') << endl;
+    cout << " Total de productos activos: " << h.registrosActivos << endl;
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+void eliminarProducto(){
+    int idBuscar = pedirEntero("Ingrese el ID del producto a eliminar: ");
+    
+    int indice = buscarProductoPorId(idBuscar);
+    if (indice == -1) {
+        cout << "\n[!] El producto con ID " << idBuscar << " no existe o ya esta inactivo." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    fstream archivo("productos.bin", ios::in | ios::out | ios::binary);
+    if (!archivo) return;
+
+    long posicion = sizeof(Header) + (indice * sizeof(Producto));
+    archivo.seekg(posicion, ios::beg);
+    
+    Producto p;
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+    cout << "\n--- ELIMINAR PRODUCTO: " << p.nombre << " ---" << endl;
+    cout << "nombre: " << p.nombre << endl;
+    cout << "ID: " << p.id << " | Codigo: " << p.codigo << " | Proveedor ID: " << p.idProveedor << endl;
+    cout << "Precio: $ " << fixed << setprecision(2) << p.precio << " | Stock: " << calcularStockActual(p) << endl;
+    cout << "\n¿Confirma que desea eliminar el producto '" << p.nombre << "'? (S/N): ";
+    char confirmacion;
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        p.activo = false;
+        p.fechaUltimaModificacion = time(0);
+        archivo.seekp(posicion, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+
+        Header h = leerHeader("productos.bin");
+        h.registrosActivos--;
+        actualizarHeader("productos.bin", h);
+
+        cout << "\n[OK] Producto eliminado (borrado lógico)." << endl;
+    } else {
+        cout << "\n[!] Operación cancelada. No se realizaron cambios." << endl;
+    }
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
 
 // Funciones CRUD - PROVEEDORES
 void crearProveedor() {
@@ -1531,12 +1798,11 @@ int main() {
                 do {
                     subOp = submenu_producto();
                     switch(subOp) {
-                        case 1: crearProducto(); break;
+                        case 1: if(tieneDatos("proveedores.bin")) crearProducto(); else cout << "[!] No hay proveedores disponibles para crear un producto.\n"; break;
                         case 2: if(tieneDatos("productos.bin")) buscarProducto(); else cout << "[!] No hay productos.\n"; break;
-                        case 3: actualizarProducto(); break;
-                        case 4: actualizarStock(); break;
-                        case 5: listarProductos(); break;
-                        case 6: eliminarProducto(); break;
+                        case 3: if(tieneDatos("productos.bin"))actualizarProducto(); else cout << "[!] No hay productos.\n"; break;
+                        case 4: if(tieneDatos("productos.bin"))listarProductos();  else cout << "[!] No hay productos.\n"; break;
+                        case 5: if(tieneDatos("productos.bin"))eliminarProducto(); else cout << "[!] No hay productos.\n"; break;
                     }
                 } while(subOp != 0);
                 break;
@@ -1580,7 +1846,6 @@ int main() {
                     }
                 } while(subOp != 0);
                 break;
-
             case 5:
                 cout << "Cerrando sesión de " << miTienda.nombre << "..." << endl;
                 ejecutando = false;
