@@ -476,6 +476,7 @@ int submenu_transaccion(){
     cout << "3. Buscar transacciones" << endl;
     cout << "4. Listar todas las transacciones" << endl;
     cout << "5. Cancelar/Anular transacción" << endl;
+    cout << "6. Restaurar transacción anulada" << endl;
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
@@ -1750,11 +1751,417 @@ void listarClientes(){}
 void eliminarCliente(){}
 
 // Funciones de TRANSACCIONES
-void registrarCompra(){}
-void registrarVenta(){}
-void buscarTransacciones(){}
-void listarTransacciones(){}
-void cancelarTransaccion(){}
+// =========================================================================
+//                  MÓDULO DE TRANSACCIONES (COMPRAS Y VENTAS)
+// =========================================================================
+
+void registrarCompra() {
+    if (!tieneDatos("productos.bin")) {
+        cout << "\n[!] ERROR: No hay productos registrados en el sistema." << endl;
+        cout << "[!] Debe registrar al menos un producto antes de realizar una compra." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    Header h = leerHeader("transacciones.bin");
+    Transaccion t;
+    
+    // Inicialización de la transacción
+    t.id = h.ProximoId;
+    t.tipo = 'C';
+    t.activo = true;
+    t.total = 0;
+    t.cantidaditems = 0;
+    obtenerFechaActual(t.fecha);
+    t.fechaCreacion = time(0);
+    t.fechaUltimaModificacion = time(0);
+
+    cout << "\n--- REGISTRAR NUEVA COMPRA (INGRESO DE STOCK) ---" << endl;
+    cout << "Transaccion ID: " << t.id << " | Fecha: " << t.fecha << endl;
+
+    t.idRelacionado = pedirEntero("ID del Proveedor: ");
+    if (!pedirTextoCancelable("Breve descripcion/Nro Factura", t.descripcion, 200)) return;
+
+    int numItems;
+    do {
+        numItems = pedirEntero("Cantidad de productos diferentes a ingresar (Max 30): ");
+        if (numItems <= 0 || numItems > 30) cout << "[!] Debe ser un numero entre 1 y 30.\n";
+    } while (numItems <= 0 || numItems > 30);
+
+    for (int i = 0; i < numItems; i++) {
+        cout << "\n-- Producto " << (i + 1) << " de " << numItems << " --" << endl;
+        int idProd = pedirEntero("ID del Producto: ");
+        
+        int idxProd = buscarProductoPorId(idProd);
+        if (idxProd == -1) {
+            cout << "[!] Error: El producto con ID " << idProd << " no existe o esta inactivo.\n";
+            i--; // Repetir el ciclo para este item
+            continue;
+        }
+
+        int cantidad;
+        do {
+            cantidad = pedirEntero("Cantidad adquirida: ");
+            if (cantidad <= 0) cout << "[!] La cantidad debe ser mayor a 0.\n";
+        } while (cantidad <= 0);
+
+        float precioUnitario;
+        cout << "Costo unitario ($): ";
+        cin >> precioUnitario;
+        vaciarBuffer();
+
+        // Guardar detalle en la transacción
+        t.detalles[t.cantidaditems].idProducto = idProd;
+        t.detalles[t.cantidaditems].cantidad = cantidad;
+        t.detalles[t.cantidaditems].precioUnitario = precioUnitario;
+        
+        t.total += (cantidad * precioUnitario);
+        t.cantidaditems++;
+
+        // Actualizar stock del producto físico en el archivo
+        fstream archivoProd("productos.bin", ios::in | ios::out | ios::binary);
+        long pos = sizeof(Header) + (idxProd * sizeof(Producto));
+        archivoProd.seekg(pos, ios::beg);
+        
+        Producto p;
+        archivoProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+        
+        p.totalComprado += cantidad; // Incrementamos el acumulador de compras
+        p.fechaUltimaModificacion = time(0);
+        
+        archivoProd.seekp(pos, ios::beg);
+        archivoProd.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+        archivoProd.close();
+    }
+
+    // Guardar transacción
+    ofstream archivoTrans("transacciones.bin", ios::app | ios::binary);
+    archivoTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
+    archivoTrans.close();
+
+    h.cantidadRegistros++;
+    h.ProximoId++;
+    h.registrosActivos++;
+    actualizarHeader("transacciones.bin", h);
+
+    actualizarCajaTienda(t.total, false); // Resta dinero de caja por egreso
+
+    cout << "\n[OK] Compra registrada exitosamente. Total: $" << fixed << setprecision(2) << t.total << endl;
+    pausarYlimpiarpantalla();
+}
+
+void registrarVenta() {
+    if (!tieneDatos("productos.bin") || !tieneDatos("clientes.bin")) {
+        cout << "\n[!] ERROR: Faltan datos clave." << endl;
+        cout << "[!] Requiere al menos un producto y un cliente registrados para vender." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    Header h = leerHeader("transacciones.bin");
+    Transaccion t;
+    
+    t.id = h.ProximoId;
+    t.tipo = 'V';
+    t.activo = true;
+    t.total = 0;
+    t.cantidaditems = 0;
+    obtenerFechaActual(t.fecha);
+    t.fechaCreacion = time(0);
+    t.fechaUltimaModificacion = time(0);
+
+    cout << "\n--- REGISTRAR NUEVA VENTA (SALIDA DE STOCK) ---" << endl;
+    
+    // Validación de Cliente
+    do {
+        t.idRelacionado = pedirEntero("ID del Cliente: ");
+        if (!existeCliente(t.idRelacionado)) {
+            cout << "[!] El cliente no existe. Intente nuevamente.\n";
+        }
+    } while (!existeCliente(t.idRelacionado));
+
+    if (!pedirTextoCancelable("Breve descripcion", t.descripcion, 200)) return;
+
+    int numItems;
+    do {
+        numItems = pedirEntero("Cantidad de productos diferentes a vender (Max 30): ");
+        if (numItems <= 0 || numItems > 30) cout << "[!] Debe ser un numero entre 1 y 30.\n";
+    } while (numItems <= 0 || numItems > 30);
+
+    for (int i = 0; i < numItems; i++) {
+        cout << "\n-- Producto " << (i + 1) << " de " << numItems << " --" << endl;
+        int idProd = pedirEntero("ID del Producto: ");
+        
+        int idxProd = buscarProductoPorId(idProd);
+        if (idxProd == -1) {
+            cout << "[!] Error: El producto no existe.\n";
+            i--; continue;
+        }
+
+        // Leer producto para validar stock
+        fstream archivoProd("productos.bin", ios::in | ios::out | ios::binary);
+        long pos = sizeof(Header) + (idxProd * sizeof(Producto));
+        archivoProd.seekg(pos, ios::beg);
+        Producto p;
+        archivoProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+        int stockActual = calcularStockActual(p);
+        cout << " [i] Stock disponible: " << stockActual << " | Precio: $" << p.precio << endl;
+
+        if (stockActual <= 0) {
+            cout << "[!] Sin stock para este producto. Seleccione otro.\n";
+            archivoProd.close();
+            i--; continue;
+        }
+
+        int cantidad;
+        do {
+            cantidad = pedirEntero("Cantidad a vender: ");
+            if (cantidad <= 0) cout << "[!] La cantidad debe ser mayor a 0.\n";
+            else if (cantidad > stockActual) cout << "[!] Stock insuficiente. Maximo disponible: " << stockActual << "\n";
+        } while (cantidad <= 0 || cantidad > stockActual);
+
+        // Actualizar datos
+        t.detalles[t.cantidaditems].idProducto = idProd;
+        t.detalles[t.cantidaditems].cantidad = cantidad;
+        t.detalles[t.cantidaditems].precioUnitario = p.precio;
+        t.total += (cantidad * p.precio);
+        t.cantidaditems++;
+
+        // Descontar stock (sumando a totalVendido)
+        p.totalVendido += cantidad;
+        p.fechaUltimaModificacion = time(0);
+        archivoProd.seekp(pos, ios::beg);
+        archivoProd.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+        archivoProd.close();
+    }
+
+    // Guardar transacción
+    ofstream archivoTrans("transacciones.bin", ios::app | ios::binary);
+    archivoTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
+    archivoTrans.close();
+
+    h.cantidadRegistros++; h.ProximoId++; h.registrosActivos++;
+    actualizarHeader("transacciones.bin", h);
+    actualizarCajaTienda(t.total, true); // Suma dinero a la caja
+
+    cout << "\n[OK] Venta procesada exitosamente. Total a cobrar: $" << fixed << setprecision(2) << t.total << endl;
+    pausarYlimpiarpantalla();
+}
+
+void buscarTransacciones() {
+    cout << "\n--- BUSCAR TRANSACCION ---" << endl;
+    cout << "1. Por ID de Transaccion\n2. Cancelar\nSeleccione: ";
+    int op; cin >> op; vaciarBuffer();
+
+    if (op == 1) {
+        int id = pedirEntero("Ingrese ID: ");
+        mostrarTransaccion(id);
+    }
+    pausarYlimpiarpantalla();
+}
+
+void listarTransacciones() {
+    ifstream archivo("transacciones.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error al abrir historial de transacciones.\n"; return;
+    }
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+
+    if (h.cantidadRegistros == 0) {
+        cout << "\n[i] No hay transacciones registradas.\n";
+        archivo.close(); pausarYlimpiarpantalla(); return;
+    }
+
+    cout << "\n================================================================================" << endl;
+    cout << left << setw(8) << "ID" << setw(10) << "TIPO" << setw(15) << "FECHA" 
+         << setw(15) << "RELACIONADO" << setw(15) << "TOTAL ($)" << "ESTADO" << endl;
+    cout << "================================================================================" << endl;
+
+    Transaccion t;
+    while (archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion))) {
+        cout << left << setw(8) << t.id 
+             << setw(10) << (t.tipo == 'C' ? "COMPRA" : "VENTA") 
+             << setw(15) << t.fecha 
+             << setw(15) << t.idRelacionado 
+             << setw(15) << fixed << setprecision(2) << t.total 
+             << (t.activo ? "ACTIVO" : "ANULADA") << endl;
+    }
+    cout << "================================================================================" << endl;
+    
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+
+void cancelarTransaccion() {
+    if (!tieneDatos("transacciones.bin"))
+    {
+        cout << "[!] No hay transacciones registradas.\n";
+        pausarYlimpiarpantalla(); return;
+    }
+    
+    int idBuscar = pedirEntero("Ingrese el ID de la transaccion a anular: ");
+    
+    // Función nativa para ubicar el índice físico
+    int indice = -1;
+    ifstream archivoLectura("transacciones.bin", ios::binary);
+    Header hL; archivoLectura.read(reinterpret_cast<char*>(&hL), sizeof(Header));
+    Transaccion tL;
+    for (int i = 0; i < hL.cantidadRegistros; i++) {
+        archivoLectura.read(reinterpret_cast<char*>(&tL), sizeof(Transaccion));
+        if (tL.id == idBuscar) { indice = i; break; }
+    }
+    archivoLectura.close();
+
+    if (indice == -1) {
+        cout << "[!] Transaccion no encontrada.\n";
+        pausarYlimpiarpantalla(); return;
+    }
+
+    fstream archivo("transacciones.bin", ios::in | ios::out | ios::binary);
+    long posicion = sizeof(Header) + (indice * sizeof(Transaccion));
+    archivo.seekg(posicion, ios::beg);
+    
+    Transaccion t;
+    archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+
+    if (!t.activo) {
+        cout << "[!] Esta transaccion ya se encuentra anulada.\n";
+        archivo.close(); pausarYlimpiarpantalla(); return;
+    }
+
+    mostrarTransaccion(t.id);
+    cout << "\n¿Esta seguro de ANULAR esta transaccion y revertir el stock? (S/N): ";
+    char conf; cin >> conf; vaciarBuffer();
+
+    if (toupper(conf) == 'S') {
+        // REVERSIÓN DE STOCK
+        for (int i = 0; i < t.cantidaditems; i++) {
+            int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
+            if (idxProd != -1) {
+                fstream fProd("productos.bin", ios::in | ios::out | ios::binary);
+                long posP = sizeof(Header) + (idxProd * sizeof(Producto));
+                fProd.seekg(posP, ios::beg);
+                Producto p;
+                fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+                if (t.tipo == 'C') {
+                    p.totalComprado -= t.detalles[i].cantidad; // Revertir ingreso
+                } else if (t.tipo == 'V') {
+                    p.totalVendido -= t.detalles[i].cantidad;  // Revertir salida
+                }
+                
+                fProd.seekp(posP, ios::beg);
+                fProd.write(reinterpret_cast<char*>(&p), sizeof(Producto));
+                fProd.close();
+            }
+        }
+
+        // Marcar inactiva
+        t.activo = false;
+        t.fechaUltimaModificacion = time(0);
+        archivo.seekp(posicion, ios::beg);
+        archivo.write(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+        
+        Header h = leerHeader("transacciones.bin");
+        h.registrosActivos--;
+        actualizarHeader("transacciones.bin", h);
+
+        cout << "\n[OK] Transaccion anulada y el inventario ha sido ajustado.\n";
+    }
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+
+void restaurarTransacciones() {
+    if (!tieneDatos("transacciones.bin"))
+    {
+        cout << "[!] No hay transacciones registradas.\n";
+        pausarYlimpiarpantalla(); return;
+    }
+    int idBuscar = pedirEntero("Ingrese el ID de la transaccion anulada a restaurar: ");
+    
+    int indice = -1;
+    ifstream archivoLectura("transacciones.bin", ios::binary);
+    Header hL; archivoLectura.read(reinterpret_cast<char*>(&hL), sizeof(Header));
+    Transaccion tL;
+    for (int i = 0; i < hL.cantidadRegistros; i++) {
+        archivoLectura.read(reinterpret_cast<char*>(&tL), sizeof(Transaccion));
+        if (tL.id == idBuscar) { indice = i; break; }
+    }
+    archivoLectura.close();
+
+    if (indice == -1) {
+        cout << "[!] Transaccion no encontrada.\n";
+        pausarYlimpiarpantalla(); return;
+    }
+
+    fstream archivo("transacciones.bin", ios::in | ios::out | ios::binary);
+    long posicion = sizeof(Header) + (indice * sizeof(Transaccion));
+    archivo.seekg(posicion, ios::beg);
+    Transaccion t;
+    archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+
+    if (t.activo) {
+        cout << "[!] La transaccion ya se encuentra ACTIVA.\n";
+        archivo.close(); pausarYlimpiarpantalla(); return;
+    }
+
+    // Verificación de viabilidad (Si es VENTA, debemos asegurar que hay stock para restaurarla)
+    if (t.tipo == 'V') {
+        for (int i = 0; i < t.cantidaditems; i++) {
+            int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
+            if (idxProd != -1) {
+                fstream fProd("productos.bin", ios::in | ios::out | ios::binary);
+                long posP = sizeof(Header) + (idxProd * sizeof(Producto));
+                fProd.seekg(posP, ios::beg);
+                Producto p;
+                fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+                fProd.close();
+
+                if (calcularStockActual(p) < t.detalles[i].cantidad) {
+                    cout << "\n[!] ERROR: No se puede restaurar la venta." << endl;
+                    cout << "[!] El producto '" << p.nombre << "' no tiene stock suficiente para cubrir la reactivación." << endl;
+                    archivo.close(); pausarYlimpiarpantalla(); return;
+                }
+            }
+        }
+    }
+
+    // REACTIVACIÓN DE STOCK
+    for (int i = 0; i < t.cantidaditems; i++) {
+        int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
+        if (idxProd != -1) {
+            fstream fProd("productos.bin", ios::in | ios::out | ios::binary);
+            long posP = sizeof(Header) + (idxProd * sizeof(Producto));
+            fProd.seekg(posP, ios::beg);
+            Producto p;
+            fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+            if (t.tipo == 'C') p.totalComprado += t.detalles[i].cantidad;
+            else if (t.tipo == 'V') p.totalVendido += t.detalles[i].cantidad;
+            
+            fProd.seekp(posP, ios::beg);
+            fProd.write(reinterpret_cast<char*>(&p), sizeof(Producto));
+            fProd.close();
+        }
+    }
+
+    t.activo = true;
+    t.fechaUltimaModificacion = time(0);
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+    archivo.close();
+
+    Header h = leerHeader("transacciones.bin");
+    h.registrosActivos++;
+    actualizarHeader("transacciones.bin", h);
+
+    cout << "\n[OK] Transaccion restaurada exitosamente. Efectos en el inventario aplicados.\n";
+    pausarYlimpiarpantalla();
+}
 
 int main() {
     // Configuración para caracteres especiales y FPS fijos
@@ -1843,6 +2250,7 @@ int main() {
                         case 3: if(tieneDatos("transacciones.bin")) buscarTransacciones(); else cout << "[!] No hay facturas.\n"; break;
                         case 4: listarTransacciones(); break;
                         case 5: cancelarTransaccion(); break;
+                        case 6: restaurarTransacciones(); break;
                     }
                 } while(subOp != 0);
                 break;
