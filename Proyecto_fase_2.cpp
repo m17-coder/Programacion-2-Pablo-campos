@@ -260,8 +260,6 @@ struct Proveedor {
     char email[100];           // Correo electrónico
     char direccion[200];       // Dirección física
     char fechaRegistro[11];    // Formato: YYYY-MM-DD
-    int stockminimo;
-    int stockvendido;
     int totalSuministros;        // Cuántas veces le hemos comprado
     float totalPagado;
     bool activo;               // Indica si el proveedor está activo o inactivo
@@ -276,8 +274,6 @@ struct Cliente {
     char telefono[20];         // Teléfono de contacto
     char email[100];           // Correo electrónico
     char direccion[200];       // Dirección física
-    int stockminimo;
-    int stockvendido;
     int totalComprasRealizadas;  // Cuántas veces ha venido
     float montoTotalGastado;
     bool activo;               // Indica si el cliente está activo o inactivo
@@ -293,8 +289,7 @@ struct DetalleVenta {
 };
 
 struct Transaccion {
-    int id;                    // Identificador único (autoincremental)           // "COMPRA" o "VENTA"
-    int idProducto;            // ID del producto involucrado
+    int id;                    // Identificador único (autoincremental)           // "COMPRA" o "VENTA"      
     int idRelacionado;         // ID del proveedor (compra) o cliente (venta)
     float total;               // cantidad * precioUnitario
     char fecha[11];            // Formato: YYYY-MM-DD
@@ -330,6 +325,14 @@ struct Header{
     int registrosActivos;
     int version;
 };
+
+void mostrarInstruccionESC() {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, 8); // 8 = Gris oscuro (Color tenue)
+    cout << " [i] Presione ESC en cualquier campo para cancelar y volver al menu principal." << endl;
+    SetConsoleTextAttribute(hConsole, 7); // 7 = Restaura el color original (Blanco/Gris)
+    cout << endl; // Un salto de linea para separar de los inputs
+}
 
 void actualizarCajaTienda(double monto, bool esIngreso) {
     fstream file("tienda.bin", ios::in | ios::out | ios::binary);
@@ -431,6 +434,7 @@ int submenu_producto(){
     cout << "Seleccione una opción: ";
     cin >> opcion;
     vaciarBuffer();
+    pausarYlimpiarpantalla();
     return opcion;
 }
 int submenu_proveedor(){
@@ -448,6 +452,7 @@ int submenu_proveedor(){
     cout << "Seleccione una opción: ";
     cin >> opcion;
     vaciarBuffer();
+    pausarYlimpiarpantalla();
     return opcion;
 }
 int submenu_cliente(){
@@ -459,11 +464,13 @@ int submenu_cliente(){
     cout << "2. Buscar cliente" << endl;
     cout << "3. Actualizar cliente" << endl;
     cout << "4. Listar clientes" << endl;
-    cout << "5. Eliminar cliente" << endl;
+    cout << "5. Eliminar cliente" << endl;;
+    cout << "6. Restaurar cliente eliminado" << endl;
     cout << "0. Volver al menú principal" << endl;
     cout << "Seleccione una opción: ";
     cin >> opcion;
     vaciarBuffer();
+    pausarYlimpiarpantalla();
     return opcion;
 }
 int submenu_transaccion(){
@@ -481,12 +488,13 @@ int submenu_transaccion(){
     cout << "Seleccione una opción: ";
     cin >> opcion;
     vaciarBuffer();
+    pausarYlimpiarpantalla();
     return opcion;
 }
 
 // Retorna false si el usuario presionó la tecla ESC
 bool pedirTextoCancelable(const char* mensaje, char* destino, int tamano) {
-    cout << mensaje << " (o presione ESC para cancelar): ";
+    cout << mensaje << ": ";
     
     int i = 0;
     char tecla;
@@ -496,6 +504,7 @@ bool pedirTextoCancelable(const char* mensaje, char* destino, int tamano) {
 
         if (tecla == 27) { // 27 es el código ASCII de 'Escape'
             cout << "\n[!] Operación cancelada por el usuario." << endl;
+            pausarYlimpiarpantalla();
             return false; 
         }
         else if (tecla == '\r') { // '\r' es el código ASCII de 'Enter'
@@ -828,12 +837,12 @@ int pedirEntero(const char* mensaje) {
     }
 }
 
-void pedirSoloLetras(const char* mensaje, char* destino, int tamano) {
+void pedirSoloLetras(const char* mensaje, char* destino, int longitud_texto) {
     bool valido;
     do {
         valido = true;
         cout << mensaje;
-        cin.getline(destino, tamano);
+        cin.getline(destino, longitud_texto);
 
         for (int i = 0; i < strlen(destino); i++) {
             // isalpha revisa si es letra. También permitimos espacios ' '
@@ -857,7 +866,7 @@ bool tieneDatos(const char* nombreArchivo) {
     archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
     archivo.close();
 
-    return h.cantidadRegistros > 0;
+    return h.registrosActivos > 0;
 }
 
 bool existeProducto(int idBuscar){
@@ -938,6 +947,25 @@ bool rifDuplicado(const char* rifABuscar) {
     return false; // No hay conflictos con proveedores activos
 }
 
+bool cedulaDuplicada(const char* cedulaABuscar) {
+    ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) return false;
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+    Cliente temp;
+
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+        if (temp.activo && strcmp(temp.cedula, cedulaABuscar) == 0) {
+            archivo.close();
+            return true; 
+        }
+    }
+    archivo.close();
+    return false;
+}
+
 bool pedirEnteroCancelable(const char* etiqueta, int &valor) {
     cout << etiqueta << ": ";
     string entrada = "";
@@ -946,6 +974,7 @@ bool pedirEnteroCancelable(const char* etiqueta, int &valor) {
         c = getch();
         if (c == 27) { // ESC
             cout << " [CANCELADO]" << endl;
+            pausarYlimpiarpantalla();
             return false; 
         }
         if (c == 13) { // ENTER
@@ -1079,6 +1108,40 @@ void listarProveedoresEliminados() {
     archivo.close();
 }
 
+void listarClientesEliminados() {
+    ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) return;
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+    
+    Cliente temp;
+    bool hayEliminados = false;
+
+    // Encabezado con el mismo estilo de proveedores
+    cout << "\n--- CLIENTES EN PAPELERA (INACTIVOS) ---" << endl;
+    cout << left << setw(5) << "ID" << setw(30) << "NOMBRE" << setw(15) << "CEDULA" << endl;
+    cout << "--------------------------------------------------------" << endl;
+
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+        
+        // Filtro: Solo mostramos los que tienen activo == false
+        if (!temp.activo) { 
+            hayEliminados = true;
+            cout << left << setw(5) << temp.id 
+                 << setw(30) << temp.nombre 
+                 << setw(15) << temp.cedula << endl;
+        }
+    }
+
+    if (!hayEliminados) {
+        cout << "[!] No hay clientes para restaurar." << endl;
+    }
+    
+    archivo.close();
+}
+
 int buscarProductosPorNombre(const char* nombreBusqueda, int idsEncontrados[100]) {
     ifstream archivo("productos.bin", ios::binary);
     if (!archivo) return 0;
@@ -1106,6 +1169,117 @@ int buscarProductosPorNombre(const char* nombreBusqueda, int idsEncontrados[100]
     return contador; // Retornamos cuántos encontramos
 }
 
+Producto leerProductoPorIndice(int indice) {
+    Producto p;
+    // Abrimos en modo lectura binaria
+    ifstream archivo("productos.bin", ios::binary);
+
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de productos." << endl;
+        // Opcional: inicializar p en limpio si falla
+        p.id = -1; 
+        return p;
+    }
+
+    // CALCULAMOS LA POSICIÓN:
+    // Saltamos el Header + (el número de índice multiplicado por el tamaño de cada producto)
+    long posicion = sizeof(Header) + (indice * sizeof(Producto));
+
+    // Movemos el puntero de lectura (get pointer)
+    archivo.seekg(posicion, ios::beg);
+
+    // Leemos el bloque de datos directamente a nuestra variable p
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+    archivo.close();
+    return p;
+}
+
+Proveedor leerProveedorPorIndice(int indice) {
+    Proveedor p;
+    ifstream archivo("proveedores.bin", ios::binary);
+    
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de proveedores." << endl;
+        p.id = -1; 
+        return p;
+    }
+
+    // Calculamos posición: Saltamos Header + (indice * tamaño del struct)
+    long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
+    archivo.seekg(posicion, ios::beg);
+    archivo.read(reinterpret_cast<char*>(&p), sizeof(Proveedor));
+    
+    archivo.close();
+    return p;
+}
+
+void escribirProveedorPorIndice(int indice, Proveedor p) {
+    fstream archivo("proveedores.bin", ios::in | ios::out | ios::binary);
+    
+    if (!archivo) {
+        cout << "[!] Error: No se pudo actualizar el registro del proveedor." << endl;
+        return;
+    }
+
+    long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&p), sizeof(Proveedor));
+    
+    archivo.close();
+}
+
+Cliente leerClientePorIndice(int indice) {
+    Cliente c;
+    ifstream archivo("clientes.bin", ios::binary);
+    
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir el archivo de clientes." << endl;
+        c.id = -1; // Marcador de error
+        return c;
+    }
+
+    // Posicion = Header + (indice * tamaño del struct Cliente)
+    long posicion = sizeof(Header) + (indice * sizeof(Cliente));
+    archivo.seekg(posicion, ios::beg);
+    archivo.read(reinterpret_cast<char*>(&c), sizeof(Cliente));
+    
+    archivo.close();
+    return c;
+}
+
+void escribirClientePorIndice(int indice, Cliente c) {
+    // Abrimos en modo in/out para poder sobrescribir una parte específica
+    fstream archivo("clientes.bin", ios::in | ios::out | ios::binary);
+    
+    if (!archivo) {
+        cout << "[!] Error fatal: No se pudo actualizar el registro del cliente." << endl;
+        return;
+    }
+
+    long posicion = sizeof(Header) + (indice * sizeof(Cliente));
+    archivo.seekp(posicion, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&c), sizeof(Cliente));
+    
+    archivo.close();
+}
+
+bool hayDineroEnCaja(float montoRequerido) {
+    ifstream archivo("tienda.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error: No se pudo abrir tienda.bin para consultar el saldo." << endl;
+        return false;
+    }
+
+    // Si guardas la tienda como un único objeto en el archivo:
+    Tienda miTienda;
+    archivo.read(reinterpret_cast<char*>(&miTienda), sizeof(Tienda));
+    archivo.close();
+
+    // Comparamos el monto contra el saldo de la tienda
+    return (miTienda.caja >= montoRequerido);
+}
+
 void crearProducto() {
     Header h = leerHeader("productos.bin");
     Producto nuevo;
@@ -1115,11 +1289,15 @@ void crearProducto() {
     if (!obtenerFechaActual(nuevo.fechaRegistro)) return;
 
     nuevo.id = h.ProximoId;
-    cout << "\n--- REGISTRO DE PRODUCTO (ID: " << nuevo.id << ") ---" << endl;
-    cout << "(ESC para cancelar en cualquier campo)" << endl;
+    
+    cout << "\n==================================================" << endl;
+    cout << "       REGISTRO DE PRODUCTO (ID: " << nuevo.id << ") " << endl;
+    cout << "==================================================" << endl;
+    
+    mostrarInstruccionESC();
 
     if (!pedirTextoCancelable("Codigo", nuevo.codigo, 20)) return;
-    if (!pedirTextoCancelable("Nombre", nuevo.nombre, 100)) return;
+    if (!pedirTextoCancelable("Nombre del Producto", nuevo.nombre, 100)) return;
     if (!pedirTextoCancelable("Descripcion", nuevo.descripcion, 200)) return;
 
     bool idValido = false;
@@ -1128,60 +1306,107 @@ void crearProducto() {
 
         if (existeProveedor(nuevo.idProveedor)) {
             obtenerNombreGenerico("proveedores.bin", nuevo.idProveedor, nombreProveedor);
-            cout << "[OK] Proveedor vinculado: " << nombreProveedor << endl;
+            cout << "  [OK] Proveedor detectado: " << nombreProveedor << endl;
             idValido = true;
         } else {
-            cout << "[!] El ID " << nuevo.idProveedor << " no existe. Reintente o presione ESC." << endl;
+            cout << "  [!] Error: El Proveedor ID " << nuevo.idProveedor << " no existe o esta inactivo." << endl;
+            cout << "      Reintente o presione ESC para salir." << endl;
         }
     } while (!idValido);
 
-    int tempPrecio, tempStock, tempMin;
-    
-    if (!pedirEnteroCancelable("Precio unitario ($)", tempPrecio)) return;
+    int tempPrecio;
+    do {
+        if (!pedirEnteroCancelable("Precio Unitario ($)", tempPrecio)) return;
+        if (tempPrecio < 0) {
+            cout << "  [!] El precio no puede ser un numero negativo." << endl;
+        }
+    } while (tempPrecio < 0);
     nuevo.precio = (float)tempPrecio;
 
-    if (!pedirEnteroCancelable("Stock Inicial", nuevo.stockInicial)) return;
+    do {
+        if (!pedirEnteroCancelable("Stock Inicial", nuevo.stockInicial)) return;
+        if (nuevo.stockInicial < 0) {
+            cout << "  [!] No puede iniciar un producto con inventario negativo." << endl;
+        }
+    } while (nuevo.stockInicial < 0);
     
-    if (!pedirEnteroCancelable("Stock Minimo", nuevo.stockminimo)) return;
+    do {
+        if (!pedirEnteroCancelable("Stock Minimo (Alerta)", nuevo.stockminimo)) return;
+        if (nuevo.stockminimo < 0) {
+            cout << "  [!] El stock minimo no puede ser negativo." << endl;
+        }
+    } while (nuevo.stockminimo < 0);
 
+    // Inicialización de valores estadísticos y de control
     nuevo.totalVendido = 0;
     nuevo.totalComprado = 0;
     nuevo.activo = true;
     nuevo.fechaCreacion = time(0);
     nuevo.fechaUltimaModificacion = time(0);
 
-    cout << "\n==================================================" << endl;
-    cout << "          CONFIRMAR DATOS DEL PRODUCTO            " << endl;
-    cout << "==================================================" << endl;
-    cout << " PRODUCTO:  " << nuevo.nombre << endl;
-    cout << " PROVEEDOR: " << nombreProveedor << endl;
-    cout << " PRECIO:    $ " << nuevo.precio << endl;
-    cout << " STOCK:     " << nuevo.stockInicial << endl;
-    cout << "==================================================" << endl;
-    cout << "¿Guardar registro? (S/N): ";
+    // Cuadro de Resumen para el usuario
+    cout << "\n--------------------------------------------------" << endl;
+    cout << "          REVISIÓN DE DATOS PRE-GUARDADO          " << endl;
+    cout << "--------------------------------------------------" << endl;
+    cout << " > PRODUCTO:  " << nuevo.nombre << endl;
+    cout << " > PROVEEDOR: " << nombreProveedor << endl;
+    cout << " > PRECIO:    $ " << fixed << setprecision(2) << nuevo.precio << endl;
+    cout << " > STOCK INI: " << nuevo.stockInicial << endl;
+    cout << " > S. MINIMO: " << nuevo.stockminimo << endl;
+    cout << "--------------------------------------------------" << endl;
+    cout << " ¿Desea guardar este producto en el sistema? (S/N): ";
     
     cin >> confirmacion;
     vaciarBuffer();
 
     if (toupper(confirmacion) == 'S') {
+        // Escritura en modo APP (Append) para agregar al final del archivo binario
         ofstream archivo("productos.bin", ios::binary | ios::app);
         if (archivo) {
             archivo.write(reinterpret_cast<const char*>(&nuevo), sizeof(Producto));
             archivo.close();
 
+            // Actualización del Header del archivo
             h.cantidadRegistros++;
             h.ProximoId++;
             h.registrosActivos++;
             actualizarHeader("productos.bin", h);
-            cout << "\n[OK] Guardado exitosamente." << endl;
+
+            cout << "\n[OK] Producto registrado y persistido en disco exitosamente." << endl;
+        } else {
+            cout << "\n[!] Error fatal: No se pudo acceder al archivo productos.bin." << endl;
         }
     } else {
-        cout << "\n[!] Registro cancelado." << endl;
+        cout << "\n[i] Operacion descartada. No se realizaron cambios." << endl;
     }
+
     pausarYlimpiarpantalla();
 }
 void buscarProducto(){
-    int idBuscar = pedirEntero("Ingrese el ID del producto a buscar: ");
+    char opcion;
+    pedirTextoCancelable("Buscar por nombre (N) o por ID (I)", &opcion, 2);
+    mostrarInstruccionESC();
+    if(toupper(opcion) == 'N'){
+        char nombreBusqueda[100];
+        if (!pedirTextoCancelable("Ingrese el nombre o parte del nombre del producto a buscar", nombreBusqueda, 100)) return;
+        cin.ignore();
+        cin.getline(nombreBusqueda, 100);
+
+        int idsEncontrados[100];
+        int cantidadEncontrados = buscarProductosPorNombre(nombreBusqueda, idsEncontrados);
+
+        if (cantidadEncontrados == 0) {
+            cout << "\n[!] No se encontraron productos que coincidan con '" << nombreBusqueda << "'." << endl;
+        } else {
+            cout << "\n[OK] Se encontraron " << cantidadEncontrados << " producto(s) que coinciden con '" << nombreBusqueda << "':" << endl;
+            for (int i = 0; i < cantidadEncontrados; i++) {
+                mostrarProducto(idsEncontrados[i]);
+                cout << "--------------------------------------------------" << endl;
+            }
+        }
+    } else if(toupper(opcion) == 'I'){
+    int idBuscar;
+    if (!pedirEnteroCancelable("Ingrese el ID del producto a buscar", idBuscar)) return;
     if (!existeProducto(idBuscar)) {
         cout << "\n[!] El producto con ID " << idBuscar << " no existe o fue eliminado." << endl;
         pausarYlimpiarpantalla();
@@ -1189,11 +1414,19 @@ void buscarProducto(){
     }
     mostrarProducto(idBuscar);
     pausarYlimpiarpantalla();
+  }
 }
 void actualizarProducto() {
-    int idBuscar = pedirEntero("Ingrese el ID del producto a actualizar: ");
-    
-    int indice = buscarProductoPorId(idBuscar);
+    int idBuscar;
+    int indice;
+
+    cout << "\n--- ACTUALIZAR PRODUCTO ---" << endl;
+    mostrarInstruccionESC(); 
+
+    // 1. Buscamos el ID con opción de cancelar
+    if (!pedirEnteroCancelable("Ingrese el ID del producto a actualizar", idBuscar)) return;
+
+    indice = buscarProductoPorId(idBuscar);
     if (indice == -1) {
         cout << "\n[!] El producto con ID " << idBuscar << " no existe o esta inactivo." << endl;
         pausarYlimpiarpantalla();
@@ -1216,28 +1449,57 @@ void actualizarProducto() {
     vaciarBuffer();
 
     char tempStr[200];
+    int tempVal;
     bool modificado = true;
+
+    // Mostramos la instrucción de nuevo por si el usuario la olvidó al entrar al submenú
+    mostrarInstruccionESC();
 
     switch(opcion) {
         case 1: 
-            if (pedirTextoCancelable("Nuevo Nombre", tempStr, 100)) strcpy(p.nombre, tempStr);
-            else modificado = false;
+            if (pedirTextoCancelable("Nuevo Nombre", tempStr, 100)) 
+                strcpy(p.nombre, tempStr);
+            else 
+                modificado = false;
             break;
+
         case 2: 
-            if (pedirTextoCancelable("Nueva Descripcion", tempStr, 200)) strcpy(p.descripcion, tempStr);
-            else modificado = false;
+            if (pedirTextoCancelable("Nueva Descripcion", tempStr, 200)) 
+                strcpy(p.descripcion, tempStr);
+            else 
+                modificado = false;
             break;
+
         case 3: 
-            cout << "Nuevo Precio ($): "; cin >> p.precio; vaciarBuffer();
+            do {
+                if (!pedirEnteroCancelable("Nuevo Precio ($)", tempVal)) {
+                    modificado = false;
+                    break;
+                }
+                if (tempVal < 0) cout << "[!] El precio no puede ser negativo." << endl;
+            } while (tempVal < 0);
+            
+            if (modificado) p.precio = (float)tempVal;
             break;
+
         case 4: 
-            p.stockminimo = pedirEntero("Nuevo Stock Minimo: ");
+            do {
+                if (!pedirEnteroCancelable("Nuevo Stock Minimo", tempVal)) {
+                    modificado = false;
+                    break;
+                }
+                if (tempVal < 0) cout << "[!] El stock no puede ser negativo." << endl;
+            } while (tempVal < 0);
+            
+            if (modificado) p.stockminimo = tempVal;
             break;
+
         case 0: 
             modificado = false;
             break;
+
         default: 
-            cout << "[!] Opcion invalida."; 
+            cout << "[!] Opcion invalida." << endl; 
             modificado = false;
     }
 
@@ -1246,6 +1508,8 @@ void actualizarProducto() {
         archivo.seekp(posicion, ios::beg);
         archivo.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
         cout << "\n[OK] Producto actualizado correctamente." << endl;
+    } else {
+        cout << "\n[i] No se realizaron cambios." << endl;
     }
 
     archivo.close();
@@ -1308,9 +1572,12 @@ void listarProductos() {
     pausarYlimpiarpantalla();
 }
 void eliminarProducto(){
-    int idBuscar = pedirEntero("Ingrese el ID del producto a eliminar: ");
-    
-    int indice = buscarProductoPorId(idBuscar);
+    int idBuscar;
+    if (!pedirEnteroCancelable("Ingrese el ID del producto a eliminar", idBuscar)) return;
+    mostrarInstruccionESC();
+    int indice;
+    if (!pedirEnteroCancelable("ID del producto a eliminar", idBuscar)) return;
+    indice = buscarProductoPorId(idBuscar);
     if (indice == -1) {
         cout << "\n[!] El producto con ID " << idBuscar << " no existe o ya esta inactivo." << endl;
         pausarYlimpiarpantalla();
@@ -1366,7 +1633,7 @@ void crearProveedor() {
     }
     nuevo.id = h.ProximoId;
     cout << "\n--- REGISTRO DE PROVEEDOR (ID: " << nuevo.id << ") ---" << endl;
-
+    mostrarInstruccionESC();
     // 1. Nombre con opción de cancelar
     if (!pedirTextoCancelable("Nombre del Proveedor", nuevo.nombre, 100)) return;
 
@@ -1439,7 +1706,12 @@ void crearProveedor() {
     pausarYlimpiarpantalla();
 }
 void buscarProveedor(){
-        int idBuscar = pedirEntero("Ingrese el ID del proveedor a buscar: ");
+        mostrarInstruccionESC();
+        int idBuscar;
+        if (!pedirEnteroCancelable("Ingrese el ID del proveedor a buscar", idBuscar)) {
+            // Al entrar aquí, ya se detectó el ESC
+            return; // Salimos de la función inmediatamente
+        }
         if (!existeProveedor(idBuscar)) {
             cout << "\n[!] El proveedor con ID " << idBuscar << " no existe o fue eliminado." << endl;
             pausarYlimpiarpantalla();
@@ -1449,8 +1721,11 @@ void buscarProveedor(){
         pausarYlimpiarpantalla();
 }
 void actualizarProveedor() {
-    int idBuscar = pedirEntero("Ingrese el ID del proveedor a actualizar: ");
-    
+    int idBuscar; 
+    if (!pedirEnteroCancelable("Ingrese el ID del proveedor a actualizar", idBuscar)) {
+    // Al entrar aquí, ya se detectó el ESC
+    return; // Salimos de la función inmediatamente
+}
     int indice = buscarIndiceProveedor(idBuscar);
     if (indice == -1) {
         cout << "\n[!] El proveedor con ID " << idBuscar << " no existe o fue eliminado." << endl;
@@ -1464,7 +1739,10 @@ void actualizarProveedor() {
     cout << "------------------------\n" << endl;
 
     fstream archivo("proveedores.bin", ios::in | ios::out | ios::binary);
-    if (!archivo) return;
+    if (!archivo) {
+        cout << "[!] Error al abrir el archivo de proveedores." << endl;       
+        return;
+    }
 
     long posicion = sizeof(Header) + (indice * sizeof(Proveedor));
     archivo.seekg(posicion, ios::beg);
@@ -1603,6 +1881,11 @@ void listarProveedores() {
     pausarYlimpiarpantalla();
 }
 void eliminarProveedor() {
+    if (!existeProveedor(1)) { // Verificar si hay al menos un proveedor activo antes de pedir ID
+        cout << "\n[!] No hay proveedores activos para eliminar." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
     int idEliminar = pedirEntero("Ingrese el ID del proveedor a eliminar: ");
 
     // 1. Validar si existe antes de intentar cualquier cosa
@@ -1686,6 +1969,7 @@ void restaurarProveedor() {
 
     listarProveedoresEliminados();
     int idIngresado = pedirEntero("\nID a restaurar: ");
+    mostrarInstruccionESC();
 
     // Buscamos el índice ignorando el estado (soloActivos = false)
     int indice = buscarIndiceProveedor(idIngresado, false);
@@ -1744,30 +2028,442 @@ void restaurarProveedor() {
 }
 
 // Funciones CRUD - CLIENTES
-void crearCliente(){}
-void buscarCliente(){}
-void actualizarCliente(){}
-void listarClientes(){}
-void eliminarCliente(){}
+void crearCliente() {
+    Header h = leerHeader("clientes.bin");
+    Cliente nuevo;
+    char confirmacion;
+    
+    if (!obtenerFechaActual(nuevo.fechaRegistro)) {
+        cout << "\n[!] Error al obtener fecha del sistema." << endl;
+        pausarYlimpiarpantalla();
+        return; 
+    }
+    
+    nuevo.id = h.ProximoId;
+    system("cls");
+    cout << "=================================================" << endl;
+    cout << "       REGISTRO DE NUEVO CLIENTE (ID: " << nuevo.id << ")" << endl;
+    cout << "      (Presione ESC en cualquier paso para salir)  " << endl;
+    cout << "=================================================" << endl;
 
-// Funciones de TRANSACCIONES
-// =========================================================================
-//                  MÓDULO DE TRANSACCIONES (COMPRAS Y VENTAS)
-// =========================================================================
+    // 1. Nombre
+    if (!pedirTextoCancelable("Nombre del Cliente", nuevo.nombre, 100)) return;
 
-void registrarCompra() {
-    if (!tieneDatos("productos.bin")) {
-        cout << "\n[!] ERROR: No hay productos registrados en el sistema." << endl;
-        cout << "[!] Debe registrar al menos un producto antes de realizar una compra." << endl;
+    // 2. Cédula (Validando duplicados)
+    do {
+        if (!pedirTextoCancelable("Cedula/RIF (Identificador)", nuevo.cedula, 20)) return;
+        
+        if (cedulaDuplicada(nuevo.cedula)) {
+            cout << "[!] Error: Esta Cedula ya pertenece a un cliente activo." << endl;
+        }
+    } while (cedulaDuplicada(nuevo.cedula));
+
+    // 3. Teléfono
+    if (!pedirTextoCancelable("Telefono de contacto", nuevo.telefono, 20)) return;
+
+    // 4. Email (Con tu validación existente)
+    do {
+        if (!pedirTextoCancelable("Correo Electronico", nuevo.email, 100)) return;
+        if (!validarEmail(nuevo.email)) {
+            cout << "[!] Formato de email invalido (ejemplo@dominio.com)." << endl;
+        }
+    } while (!validarEmail(nuevo.email));
+
+    // 5. Dirección
+    if (!pedirTextoCancelable("Direccion de habitacion/fiscal", nuevo.direccion, 200)) return;
+
+    // Inicialización de campos numéricos y estado
+    nuevo.totalComprasRealizadas = 0;
+    nuevo.montoTotalGastado = 0.0;
+    nuevo.activo = true;
+    nuevo.fechaCreacion = time(0);
+    nuevo.fechaUltimaModificacion = time(0);
+
+    // --- PARTE DE CONFIRMACIÓN (Igual a Proveedor) ---
+    cout << "\n========================================" << endl;
+    cout << "       VERIFIQUE LOS DATOS DEL CLIENTE   " << endl;
+    cout << "========================================" << endl;
+    cout << " ID:        " << nuevo.id << endl;
+    cout << " Nombre:    " << nuevo.nombre << endl;
+    cout << " Cedula:    " << nuevo.cedula << endl;
+    cout << " Telefono:  " << nuevo.telefono << endl;
+    cout << " Email:     " << nuevo.email << endl;
+    cout << " Registro:  " << nuevo.fechaRegistro << endl;
+    cout << "----------------------------------------" << endl;
+    cout << " ¿Desea guardar el registro? (S/N): ";
+    
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        ofstream archivo("clientes.bin", ios::binary | ios::app);
+        if (!archivo) {
+            cout << "[!] Error al guardar en el archivo." << endl;
+            return;
+        }
+        archivo.write(reinterpret_cast<const char*>(&nuevo), sizeof(Cliente));
+        archivo.close();
+
+        // Actualizar Header
+        h.cantidadRegistros++;
+        h.ProximoId++;
+        h.registrosActivos++;
+        actualizarHeader("clientes.bin", h);
+
+        cout << "\n[OK] Cliente registrado exitosamente." << endl;
+    } else {
+        cout << "\n[!] Operacion cancelada. No se guardaron datos." << endl;
+    }
+
+    pausarYlimpiarpantalla();
+}
+void buscarCliente(){
+    if (!tieneDatos("clientes.bin")) {
+        cout << "\n[!] No hay clientes registrados en el sistema." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+        int idBuscar = pedirEntero("Ingrese el ID del cliente a buscar: ");
+        mostrarInstruccionESC();
+            if (!existeCliente(idBuscar)) {
+                cout << "\n[!] El cliente con ID " << idBuscar << " no existe o fue eliminado." << endl;
+                pausarYlimpiarpantalla();
+                return;
+            }
+            mostrarcliente(idBuscar);
+            pausarYlimpiarpantalla();
+}
+void actualizarCliente() {
+    if (!tieneDatos("clientes.bin")) {
+        cout << "\n[!] No hay clientes registrados para actualizar." << endl;
         pausarYlimpiarpantalla();
         return;
     }
 
-    Header h = leerHeader("transacciones.bin");
+    fstream archivo("clientes.bin", ios::binary | ios::in | ios::out);
+    if (!archivo) {
+        cout << "[!] Error critico al abrir el archivo de clientes." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    char cedulaBusqueda[20];
+    system("cls");
+    cout << "=================================================" << endl;
+    cout << "             ACTUALIZAR DATOS DE CLIENTE         " << endl;
+    cout << "=================================================" << endl;
+    mostrarInstruccionESC();
+    if (!pedirTextoCancelable("Ingrese la Cedula/RIF a buscar", cedulaBusqueda, 20)) {
+        archivo.close();
+        return;
+    }
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+
+    Cliente temp;
+    bool encontrado = false;
+    long posicionRegistro = 0;
+
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        posicionRegistro = archivo.tellg(); 
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+
+        if (temp.activo && strcmp(temp.cedula, cedulaBusqueda) == 0) {
+            encontrado = true;
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        cout << "\n[!] No se encontro un cliente activo con la cedula: " << cedulaBusqueda << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    cout << "\n[i] Cliente encontrado: " << temp.nombre << endl;
+    cout << "[i] Pulse enter para dejar los mismos datos." << endl;
+    
+    char nuevoNombre[100], nuevoTlf[20], nuevoEmail[100], nuevaDir[200];
+
+    if (!pedirTextoCancelable("Nuevo Nombre", nuevoNombre, 100)) { archivo.close(); return; }
+    if (strlen(nuevoNombre) > 0) strcpy(temp.nombre, nuevoNombre);
+
+    if (!pedirTextoCancelable("Nuevo Telefono", nuevoTlf, 20)) { archivo.close(); return; }
+    if (strlen(nuevoTlf) > 0) strcpy(temp.telefono, nuevoTlf);
+
+    do {
+        if (!pedirTextoCancelable("Nuevo Correo", nuevoEmail, 100)) { archivo.close(); return; }
+        if (strlen(nuevoEmail) > 0) {
+            if (validarEmail(nuevoEmail)) {
+                strcpy(temp.email, nuevoEmail);
+                break;
+            } else {
+                cout << "[!] Error: Formato de correo invalido." << endl;
+            }
+        } else break; 
+    } while (true);
+
+    if (!pedirTextoCancelable("Nueva Direccion", nuevaDir, 200)) { archivo.close(); return; }
+    if (strlen(nuevaDir) > 0) strcpy(temp.direccion, nuevaDir);
+
+    temp.fechaUltimaModificacion = time(0);
+
+    cout << "\n¿Desea guardar los cambios realizados? (S/N): ";
+    char confirmacion;
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        archivo.seekp(posicionRegistro, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&temp), sizeof(Cliente));
+        cout << "\n[OK] Datos del cliente actualizados correctamente." << endl;
+    } else {
+        cout << "\n[!] Operacion cancelada. Los datos originales se mantienen." << endl;
+    }
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+void listarClientes() {
+    if (!tieneDatos("clientes.bin")) {
+        cout << "\n[!] No hay clientes registrados para mostrar." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 2. Apertura del archivo
+    ifstream archivo("clientes.bin", ios::binary);
+    if (!archivo) {
+        cout << "[!] Error al abrir el archivo de clientes." << endl;
+        return;
+    }
+
+    // 3. Lectura del Header
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+
+    if (h.registrosActivos == 0) {
+        cout << "\n[!] No hay clientes activos en el sistema." << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    Cliente temp;
+
+    cout << "\n==================================================================================" << endl;
+    cout << "                              LISTADO DE CLIENTES" << endl;
+    cout << "==================================================================================" << endl;
+    cout << left << setw(8)  << "ID" 
+         << setw(30) << "NOMBRE" 
+         << setw(15) << "CEDULA/RIF" 
+         << setw(15) << "TELEFONO" 
+         << setw(12) << "REGISTRO" << endl;
+    cout << "----------------------------------------------------------------------------------" << endl;
+
+    // 5. Recorrido de los registros
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+
+        // Solo mostramos si el registro está activo (Borrado Lógico)
+        if (temp.activo) {
+            cout << left << setw(8)  << temp.id 
+                 << setw(30) << temp.nombre 
+                 << setw(15) << temp.cedula 
+                 << setw(15) << temp.telefono 
+                 << setw(12) << temp.fechaRegistro << endl;
+        }
+    }
+
+    // 6. Pie de tabla con resumen
+    cout << "==================================================================================" << endl;
+    cout << " Total de registros activos: " << h.registrosActivos << endl;
+    cout << "==================================================================================" << endl;
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+void eliminarCliente() {
+    // 1. Verificación inicial de datos
+    if (!tieneDatos("clientes.bin")) {
+        cout << "\n[!] No hay clientes registrados para eliminar." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 2. Apertura en modo lectura/escritura
+    fstream archivo("clientes.bin", ios::binary | ios::in | ios::out);
+    if (!archivo) {
+        cout << "[!] Error al abrir el archivo de clientes." << endl;
+        return;
+    }
+
+    char cedulaBusqueda[20];
+    system("cls");
+    cout << "=================================================" << endl;
+    cout << "               ELIMINAR CLIENTE                  " << endl;
+    cout << "=================================================" << endl;
+    mostrarInstruccionESC();
+    if (!pedirTextoCancelable("Ingrese la Cedula del cliente a eliminar", cedulaBusqueda, 20)) {
+        archivo.close();
+        return;
+    }
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+
+    Cliente temp;
+    bool encontrado = false;
+    long posicionRegistro = 0;
+
+    // 3. Búsqueda del registro activo
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        posicionRegistro = archivo.tellg(); // Guardamos la posición antes de leer
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+
+        if (temp.activo && strcmp(temp.cedula, cedulaBusqueda) == 0) {
+            encontrado = true;
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        cout << "\n[!] No se encontro un cliente activo con la cedula: " << cedulaBusqueda << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 4. Confirmación de eliminación
+    cout << "\n[i] Cliente localizado: " << temp.nombre << endl;
+    cout << "¿ESTA SEGURO QUE DESEA ELIMINAR ESTE REGISTRO? (S/N): ";
+    char confirmacion;
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        // --- PROCESO DE BORRADO LÓGICO ---
+        temp.activo = false; // Cambiamos el estado
+        temp.fechaUltimaModificacion = time(0);
+
+        // Volvemos a la posición del registro y sobreescribimos
+        archivo.seekp(posicionRegistro, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&temp), sizeof(Cliente));
+        
+        // Cerramos para liberar el archivo antes de actualizar el header
+        archivo.close();
+
+        // 5. Actualización del Header (restamos uno a los activos)
+        h.registrosActivos--;
+        actualizarHeader("clientes.bin", h);
+
+        cout << "\n[OK] Cliente eliminado exitosamente (Borrado Logico)." << endl;
+    } else {
+        cout << "\n[!] Operacion cancelada. El cliente sigue activo." << endl;
+        archivo.close();
+    }
+
+    pausarYlimpiarpantalla();
+}
+
+void restaurarCliente() {
+    // 1. Verificación inicial de datos
+    if (!tieneDatos("clientes.bin")) {
+        cout << "\n[!] No hay registros en el archivo de clientes." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 2. Apertura en modo lectura/escritura (fstream)
+    fstream archivo("clientes.bin", ios::binary | ios::in | ios::out);
+    if (!archivo) {
+        cout << "[!] Error al abrir el archivo de clientes." << endl;
+        return;
+    }
+
+    char cedulaBusqueda[20];
+    system("cls");
+    cout << "=================================================" << endl;
+    cout << "             RESTAURAR CLIENTE                   " << endl;
+    cout << "=================================================" << endl;
+
+    mostrarInstruccionESC();
+    if (!pedirTextoCancelable("Ingrese la Cedula del cliente a restaurar", cedulaBusqueda, 20)) {
+        archivo.close();
+        return;
+    }
+
+    Header h;
+    archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+
+    Cliente temp;
+    bool encontrado = false;
+    long posicionRegistro = 0;
+
+    // 3. Búsqueda del registro ELIMINADO (!temp.activo)
+    for (int i = 0; i < h.cantidadRegistros; i++) {
+        posicionRegistro = archivo.tellg(); 
+        archivo.read(reinterpret_cast<char*>(&temp), sizeof(Cliente));
+
+        if (!temp.activo && strcmp(temp.cedula, cedulaBusqueda) == 0) {
+            encontrado = true;
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        cout << "\n[!] No se encontro un cliente ELIMINADO con esa cedula." << endl;
+        cout << "    (Si el cliente ya esta activo, no necesita restaurarse)." << endl;
+        archivo.close();
+        pausarYlimpiarpantalla();
+        return;
+    }
+
+    // 4. Confirmación de Restauración
+    cout << "\n[i] Cliente localizado en papelera: " << temp.nombre << endl;
+    cout << "¿Desea ACTIVAR nuevamente este registro? (S/N): ";
+    char confirmacion;
+    cin >> confirmacion;
+    vaciarBuffer();
+
+    if (toupper(confirmacion) == 'S') {
+        // --- PROCESO DE RESTAURACIÓN ---
+        temp.activo = true; // Volvemos a activar el registro
+        temp.fechaUltimaModificacion = time(0);
+
+        // Posicionamiento aleatorio y sobreescritura
+        archivo.seekp(posicionRegistro, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&temp), sizeof(Cliente));
+        
+        // Cerramos para actualizar el header por separado
+        archivo.close();
+
+        // 5. Actualización del Header (sumamos uno a los activos)
+        h.registrosActivos++;
+        actualizarHeader("clientes.bin", h);
+
+        cout << "\n[OK] Cliente restaurado exitosamente." << endl;
+    } else {
+        cout << "\n[!] Operacion cancelada. El cliente permanece en papelera." << endl;
+        archivo.close();
+    }
+
+    pausarYlimpiarpantalla();
+}
+void registrarCompra() {
+    Header hProd = leerHeader("productos.bin");
+    if (hProd.registrosActivos == 0) {
+        cout << "\n[!] ERROR: No hay productos registrados." << endl;
+        pausarYlimpiarpantalla(); return;
+    }
+
+    Header hTrans = leerHeader("transacciones.bin");
     Transaccion t;
     
-    // Inicialización de la transacción
-    t.id = h.ProximoId;
+    // Inicialización
+    t.id = hTrans.ProximoId;
     t.tipo = 'C';
     t.activo = true;
     t.total = 0;
@@ -1776,92 +2472,143 @@ void registrarCompra() {
     t.fechaCreacion = time(0);
     t.fechaUltimaModificacion = time(0);
 
-    cout << "\n--- REGISTRAR NUEVA COMPRA (INGRESO DE STOCK) ---" << endl;
-    cout << "Transaccion ID: " << t.id << " | Fecha: " << t.fecha << endl;
+    cout << "\n--- REGISTRAR NUEVA COMPRA (ID: " << t.id << ") ---" << endl;
+    mostrarInstruccionESC();
+    
+    if (!pedirEnteroCancelable("ID del Proveedor", t.idRelacionado)) return;
+    if (!existeProveedor(t.idRelacionado)) { // Asegúrate de tener esta validación
+        cout << "[!] Proveedor no encontrado." << endl;
+        pausarYlimpiarpantalla(); return;
+    }
 
-    t.idRelacionado = pedirEntero("ID del Proveedor: ");
-    if (!pedirTextoCancelable("Breve descripcion/Nro Factura", t.descripcion, 200)) return;
+    if (!pedirTextoCancelable("Breve descripcion", t.descripcion, 200)) return;
 
     int numItems;
     do {
-        numItems = pedirEntero("Cantidad de productos diferentes a ingresar (Max 30): ");
-        if (numItems <= 0 || numItems > 30) cout << "[!] Debe ser un numero entre 1 y 30.\n";
+        if (!pedirEnteroCancelable("Cantidad de productos diferentes", numItems)) return;
+        if (numItems <= 0 || numItems > 30) cout << "[!] Error: Maximo 30 items.\n";
     } while (numItems <= 0 || numItems > 30);
 
+    // 1. CAPTURA TEMPORAL (No tocamos archivos todavía)
     for (int i = 0; i < numItems; i++) {
-        cout << "\n-- Producto " << (i + 1) << " de " << numItems << " --" << endl;
-        int idProd = pedirEntero("ID del Producto: ");
-        
+        cout << "\n-- Item " << (i + 1) << " --" << endl;
+        int idProd;
+        if (!pedirEnteroCancelable("ID del Producto", idProd)) return;
+
         int idxProd = buscarProductoPorId(idProd);
         if (idxProd == -1) {
-            cout << "[!] Error: El producto con ID " << idProd << " no existe o esta inactivo.\n";
-            i--; // Repetir el ciclo para este item
-            continue;
+            cout << "[!] Producto no existe.\n"; i--; continue;
         }
 
-        int cantidad;
-        do {
-            cantidad = pedirEntero("Cantidad adquirida: ");
-            if (cantidad <= 0) cout << "[!] La cantidad debe ser mayor a 0.\n";
-        } while (cantidad <= 0);
+        // Validar duplicados en la misma factura
+        bool yaExiste = false;
+        for(int j = 0; j < t.cantidaditems; j++) {
+            if(t.detalles[j].idProducto == idProd) yaExiste = true;
+        }
+        if(yaExiste) {
+            cout << "[!] Producto ya agregado.\n"; i--; continue;
+        }
 
-        float precioUnitario;
+        int cant;
+        if (!pedirEnteroCancelable("Cantidad adquirida", cant)) return;
+        
+        float precioU;
         cout << "Costo unitario ($): ";
-        cin >> precioUnitario;
-        vaciarBuffer();
+        cin >> precioU; vaciarBuffer();
+        if (precioU <= 0) { cout << "[!] Precio invalido.\n"; i--; continue; }
 
-        // Guardar detalle en la transacción
+        // Guardamos en el struct temporal
         t.detalles[t.cantidaditems].idProducto = idProd;
-        t.detalles[t.cantidaditems].cantidad = cantidad;
-        t.detalles[t.cantidaditems].precioUnitario = precioUnitario;
+        t.detalles[t.cantidaditems].cantidad = cant;
+        t.detalles[t.cantidaditems].precioUnitario = precioU;
         
-        t.total += (cantidad * precioUnitario);
+        t.total += (cant * precioU);
         t.cantidaditems++;
-
-        // Actualizar stock del producto físico en el archivo
-        fstream archivoProd("productos.bin", ios::in | ios::out | ios::binary);
-        long pos = sizeof(Header) + (idxProd * sizeof(Producto));
-        archivoProd.seekg(pos, ios::beg);
-        
-        Producto p;
-        archivoProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
-        
-        p.totalComprado += cantidad; // Incrementamos el acumulador de compras
-        p.fechaUltimaModificacion = time(0);
-        
-        archivoProd.seekp(pos, ios::beg);
-        archivoProd.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
-        archivoProd.close();
     }
 
-    // Guardar transacción
-    ofstream archivoTrans("transacciones.bin", ios::app | ios::binary);
-    archivoTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
-    archivoTrans.close();
+    // 2. VALIDACIÓN DE CAJA
+    if (!hayDineroEnCaja(t.total)) {
+        cout << "\n[!] ERROR: Saldo insuficiente en tienda ($" << t.total << " requeridos)." << endl;
+        pausarYlimpiarpantalla(); return;
+    }
 
-    h.cantidadRegistros++;
-    h.ProximoId++;
-    h.registrosActivos++;
-    actualizarHeader("transacciones.bin", h);
+    // 3. RESUMEN Y CONFIRMACIÓN
+    system("cls");
+    cout << "==================================================" << endl;
+    cout << "          RESUMEN DE COMPRA #" << t.id << endl;
+    cout << "==================================================" << endl;
+    cout << " PROVEEDOR ID: " << t.idRelacionado << " | TOTAL: $" << t.total << endl;
+    cout << "--------------------------------------------------" << endl;
+    
+    char confirm;
+    cout << "¿Desea procesar esta compra y pagar al proveedor? (S/N): ";
+    cin >> confirm; vaciarBuffer();
 
-    actualizarCajaTienda(t.total, false); // Resta dinero de caja por egreso
+    if (toupper(confirm) == 'S') {
+        // 4. ACTUALIZACIÓN FÍSICA (Aquí recién escribimos en disco)
+        
+        // A. Productos (DENTRO DEL FOR)
+        for (int i = 0; i < t.cantidaditems; i++) {
+            int idx = buscarProductoPorId(t.detalles[i].idProducto);
+            // Usamos lógica de apertura y cierre rápida
+            fstream archivoProd("productos.bin", ios::in | ios::out | ios::binary);
+            long pos = sizeof(Header) + (idx * sizeof(Producto));
+            Producto p;
+            archivoProd.seekg(pos, ios::beg);
+            archivoProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+            
+            p.totalComprado += t.detalles[i].cantidad;
+            p.fechaUltimaModificacion = time(0);
+            
+            archivoProd.seekp(pos, ios::beg);
+            archivoProd.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+            archivoProd.close();
+        }
 
-    cout << "\n[OK] Compra registrada exitosamente. Total: $" << fixed << setprecision(2) << t.total << endl;
+        // B. Proveedor (FUERA DEL FOR)
+        int idxP = buscarIndiceProveedor(t.idRelacionado);
+        if (idxP != -1) {
+            Proveedor prov = leerProveedorPorIndice(idxP);
+            prov.totalSuministros++;
+            prov.totalPagado += t.total;
+            prov.fechaUltimaModificacion = time(0);
+            escribirProveedorPorIndice(idxP, prov);
+        }
+
+        // C. Transacción, Header y Caja
+        ofstream archivoTrans("transacciones.bin", ios::app | ios::binary);
+        archivoTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
+        archivoTrans.close();
+
+        hTrans.cantidadRegistros++;
+        hTrans.ProximoId++;
+        hTrans.registrosActivos++;
+        actualizarHeader("transacciones.bin", hTrans);
+        actualizarCajaTienda(t.total, false); // Resta dinero
+
+        cout << "\n[OK] Compra exitosa. Stock y Caja actualizados." << endl;
+    } else {
+        cout << "\n[i] Compra cancelada. No se realizo ningun pago." << endl;
+    }
+    
     pausarYlimpiarpantalla();
 }
 
 void registrarVenta() {
-    if (!tieneDatos("productos.bin") || !tieneDatos("clientes.bin")) {
-        cout << "\n[!] ERROR: Faltan datos clave." << endl;
-        cout << "[!] Requiere al menos un producto y un cliente registrados para vender." << endl;
+    Header hProd = leerHeader("productos.bin");
+    Header hClie = leerHeader("clientes.bin");
+    
+    if (hProd.registrosActivos == 0 || hClie.registrosActivos == 0) {
+        cout << "\n[!] ERROR: Faltan datos (Productos o Clientes) para operar." << endl;
         pausarYlimpiarpantalla();
         return;
     }
 
-    Header h = leerHeader("transacciones.bin");
+    Header hTrans = leerHeader("transacciones.bin");
     Transaccion t;
     
-    t.id = h.ProximoId;
+    // Inicialización básica
+    t.id = hTrans.ProximoId;
     t.tipo = 'V';
     t.activo = true;
     t.total = 0;
@@ -1870,82 +2617,154 @@ void registrarVenta() {
     t.fechaCreacion = time(0);
     t.fechaUltimaModificacion = time(0);
 
-    cout << "\n--- REGISTRAR NUEVA VENTA (SALIDA DE STOCK) ---" << endl;
-    
-    // Validación de Cliente
-    do {
-        t.idRelacionado = pedirEntero("ID del Cliente: ");
-        if (!existeCliente(t.idRelacionado)) {
-            cout << "[!] El cliente no existe. Intente nuevamente.\n";
-        }
-    } while (!existeCliente(t.idRelacionado));
+    cout << "\n--- NUEVA VENTA (ID: " << t.id << ") ---" << endl;
+    mostrarInstruccionESC();
 
-    if (!pedirTextoCancelable("Breve descripcion", t.descripcion, 200)) return;
-
-    int numItems;
-    do {
-        numItems = pedirEntero("Cantidad de productos diferentes a vender (Max 30): ");
-        if (numItems <= 0 || numItems > 30) cout << "[!] Debe ser un numero entre 1 y 30.\n";
-    } while (numItems <= 0 || numItems > 30);
-
-    for (int i = 0; i < numItems; i++) {
-        cout << "\n-- Producto " << (i + 1) << " de " << numItems << " --" << endl;
-        int idProd = pedirEntero("ID del Producto: ");
-        
-        int idxProd = buscarProductoPorId(idProd);
-        if (idxProd == -1) {
-            cout << "[!] Error: El producto no existe.\n";
-            i--; continue;
-        }
-
-        // Leer producto para validar stock
-        fstream archivoProd("productos.bin", ios::in | ios::out | ios::binary);
-        long pos = sizeof(Header) + (idxProd * sizeof(Producto));
-        archivoProd.seekg(pos, ios::beg);
-        Producto p;
-        archivoProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
-
-        int stockActual = calcularStockActual(p);
-        cout << " [i] Stock disponible: " << stockActual << " | Precio: $" << p.precio << endl;
-
-        if (stockActual <= 0) {
-            cout << "[!] Sin stock para este producto. Seleccione otro.\n";
-            archivoProd.close();
-            i--; continue;
-        }
-
-        int cantidad;
-        do {
-            cantidad = pedirEntero("Cantidad a vender: ");
-            if (cantidad <= 0) cout << "[!] La cantidad debe ser mayor a 0.\n";
-            else if (cantidad > stockActual) cout << "[!] Stock insuficiente. Maximo disponible: " << stockActual << "\n";
-        } while (cantidad <= 0 || cantidad > stockActual);
-
-        // Actualizar datos
-        t.detalles[t.cantidaditems].idProducto = idProd;
-        t.detalles[t.cantidaditems].cantidad = cantidad;
-        t.detalles[t.cantidaditems].precioUnitario = p.precio;
-        t.total += (cantidad * p.precio);
-        t.cantidaditems++;
-
-        // Descontar stock (sumando a totalVendido)
-        p.totalVendido += cantidad;
-        p.fechaUltimaModificacion = time(0);
-        archivoProd.seekp(pos, ios::beg);
-        archivoProd.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
-        archivoProd.close();
+    // 1. Selección de Cliente
+    if (!pedirEnteroCancelable("ID del Cliente", t.idRelacionado)) return;
+    if (!existeCliente(t.idRelacionado)) {
+        cout << "[!] Cliente no encontrado. Operacion abortada." << endl;
+        pausarYlimpiarpantalla();
+        return;
     }
 
-    // Guardar transacción
-    ofstream archivoTrans("transacciones.bin", ios::app | ios::binary);
-    archivoTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
-    archivoTrans.close();
+    if (!pedirTextoCancelable("Descripcion", t.descripcion, 200)) return;
 
-    h.cantidadRegistros++; h.ProximoId++; h.registrosActivos++;
-    actualizarHeader("transacciones.bin", h);
-    actualizarCajaTienda(t.total, true); // Suma dinero a la caja
+    // 2. Cantidad de renglones/items
+    int numItems;
+    do {
+        if (!pedirEnteroCancelable("Cantidad de productos diferentes", numItems)) return;
+        if (numItems <= 0 || numItems > 30) cout << "[!] Debe ser entre 1 y 30." << endl;
+    } while (numItems <= 0 || numItems > 30);
 
-    cout << "\n[OK] Venta procesada exitosamente. Total a cobrar: $" << fixed << setprecision(2) << t.total << endl;
+    // 3. Captura de Items (Sin modificar archivos todavia)
+    for (int i = 0; i < numItems; i++) {
+        cout << "\n-- Item " << (i + 1) << " --" << endl;
+        int idP;
+        if (!pedirEnteroCancelable("ID Producto", idP)) return;
+
+        int idx = buscarProductoPorId(idP);
+        if (idx == -1) {
+            cout << "[!] Producto no existe. Intente otro ID." << endl;
+            i--; continue;
+        }
+
+        // Validar duplicados en la misma factura
+        bool duplicado = false;
+        for(int j=0; j < t.cantidaditems; j++) {
+            if(t.detalles[j].idProducto == idP) duplicado = true;
+        }
+        if(duplicado) {
+            cout << "[!] El producto ya esta en la lista." << endl;
+            i--; continue;
+        }
+
+        // Verificar Stock
+        Producto p = leerProductoPorIndice(idx); // Funcion auxiliar para leer 1 solo registro
+        int disponible = (p.stockInicial + p.totalComprado) - p.totalVendido;
+
+        int cant;
+        if (!pedirEnteroCancelable("Cantidad", cant)) return;
+        
+        if (cant <= 0 || cant > disponible) {
+            cout << "[!] Cantidad invalida o Stock insuficiente (Disp: " << disponible << ")" << endl;
+            i--; continue;
+        }
+
+        // Llenar detalle temporal
+        t.detalles[t.cantidaditems].idProducto = idP;
+        t.detalles[t.cantidaditems].cantidad = cant;
+        t.detalles[t.cantidaditems].precioUnitario = p.precio;
+        
+        t.total += (cant * p.precio);
+        t.cantidaditems++;
+    }
+
+    // 4. CUADRO DE RESUMEN Y CONFIRMACIÓN
+    system("cls");
+    cout << "==================================================" << endl;
+    cout << "             RESUMEN DE LA VENTA #" << t.id << endl;
+    cout << "==================================================" << endl;
+    cout << " CLIENTE ID: " << t.idRelacionado << endl;
+    cout << " FECHA:      " << t.fecha << endl;
+    cout << "--------------------------------------------------" << endl;
+    cout << left << setw(10) << "ID PROD" << setw(20) << "CANT." << "SUBTOTAL" << endl;
+    
+    for (int i = 0; i < t.cantidaditems; i++) {
+        cout << left << setw(10) << t.detalles[i].idProducto 
+             << setw(20) << t.detalles[i].cantidad 
+             << "$ " << (t.detalles[i].cantidad * t.detalles[i].precioUnitario) << endl;
+    }
+    cout << "--------------------------------------------------" << endl;
+    cout << " TOTAL A COBRAR: $ " << fixed << setprecision(2) << t.total << endl;
+    cout << "==================================================" << endl;
+    
+    char confirm;
+    cout << "¿Desea procesar y guardar esta venta? (S/N): ";
+    cin >> confirm;
+    vaciarBuffer();
+
+    if (toupper(confirm) == 'S') {
+        // 5. ACTUALIZACIÓN FINAL (Recién aquí tocamos los archivos)
+        
+        // A. Actualizar stocks de productos
+        for (int i = 0; i < t.cantidaditems; i++) {
+    int idx = buscarProductoPorId(t.detalles[i].idProducto);
+    
+    // Abrimos el archivo para modificarlo (in/out)
+    fstream archivo("productos.bin", ios::in | ios::out | ios::binary);
+    if (archivo) {
+        // 1. Calculamos la posición del producto
+        long posicion = sizeof(Header) + (idx * sizeof(Producto));
+        
+        // 2. Leemos el producto actual
+        Producto p;
+        archivo.seekg(posicion, ios::beg);
+        archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+
+        // 3. Modificamos el acumulador de ventas
+        p.totalVendido += t.detalles[i].cantidad;
+        p.fechaUltimaModificacion = time(0);
+
+        // 4. Volvemos a la posición para SOBRESCRIBIRLO
+        archivo.seekp(posicion, ios::beg);
+        archivo.write(reinterpret_cast<const char*>(&p), sizeof(Producto));
+        
+        archivo.close();
+    }
+}
+
+        int idxCli = buscarClientePorId(t.idRelacionado);
+        if (idxCli != -1) {
+            // 1. Leemos los datos actuales del cliente
+            Cliente cli = leerClientePorIndice(idxCli);
+            
+            // 2. Sumamos la nueva venta a sus estadísticas
+            cli.totalComprasRealizadas++;        // Aumenta el contador de visitas
+            cli.montoTotalGastado += t.total;    // Suma el dinero al acumulador histórico
+            cli.fechaUltimaModificacion = time(0);
+            
+            // 3. Sobrescribimos el registro en el archivo
+            escribirClientePorIndice(idxCli, cli);
+        }
+
+        // B. Guardar Transacción
+        ofstream fTrans("transacciones.bin", ios::app | ios::binary);
+        fTrans.write(reinterpret_cast<const char*>(&t), sizeof(Transaccion));
+        fTrans.close();
+
+        // C. Actualizar Header y Caja
+        hTrans.cantidadRegistros++;
+        hTrans.ProximoId++;
+        hTrans.registrosActivos++;
+        actualizarHeader("transacciones.bin", hTrans);
+        actualizarCajaTienda(t.total, true); 
+
+        cout << "\n[OK] Venta procesada exitosamente." << endl;
+    } else {
+        cout << "\n[i] Venta cancelada por el usuario. No se afecto el stock." << endl;
+    }
+
     pausarYlimpiarpantalla();
 }
 
@@ -1996,15 +2815,17 @@ void listarTransacciones() {
 }
 
 void cancelarTransaccion() {
-    if (!tieneDatos("transacciones.bin"))
-    {
+    if (!tieneDatos("transacciones.bin")) {
         cout << "[!] No hay transacciones registradas.\n";
         pausarYlimpiarpantalla(); return;
     }
     
-    int idBuscar = pedirEntero("Ingrese el ID de la transaccion a anular: ");
-    
-    // Función nativa para ubicar el índice físico
+    int idBuscar;
+    mostrarInstruccionESC();
+    // Usamos la versión cancelable para ser consistentes
+    if (!pedirEnteroCancelable("Ingrese el ID de la transaccion a anular", idBuscar)) return;
+
+    // ... (Tu lógica de búsqueda de índice se mantiene igual) ...
     int indice = -1;
     ifstream archivoLectura("transacciones.bin", ios::binary);
     Header hL; archivoLectura.read(reinterpret_cast<char*>(&hL), sizeof(Header));
@@ -2023,7 +2844,6 @@ void cancelarTransaccion() {
     fstream archivo("transacciones.bin", ios::in | ios::out | ios::binary);
     long posicion = sizeof(Header) + (indice * sizeof(Transaccion));
     archivo.seekg(posicion, ios::beg);
-    
     Transaccion t;
     archivo.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
 
@@ -2032,12 +2852,15 @@ void cancelarTransaccion() {
         archivo.close(); pausarYlimpiarpantalla(); return;
     }
 
+    // Mostramos que vamos a anular
     mostrarTransaccion(t.id);
-    cout << "\n¿Esta seguro de ANULAR esta transaccion y revertir el stock? (S/N): ";
-    char conf; cin >> conf; vaciarBuffer();
+    cout << "\n¿Esta seguro de ANULAR esta transaccion y revertir el stock/caja? (S/N): ";
+    char conf; 
+    cin >> conf; 
+    vaciarBuffer();
 
     if (toupper(conf) == 'S') {
-        // REVERSIÓN DE STOCK
+        // 1. REVERSIÓN DE STOCK
         for (int i = 0; i < t.cantidaditems; i++) {
             int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
             if (idxProd != -1) {
@@ -2047,11 +2870,8 @@ void cancelarTransaccion() {
                 Producto p;
                 fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
 
-                if (t.tipo == 'C') {
-                    p.totalComprado -= t.detalles[i].cantidad; // Revertir ingreso
-                } else if (t.tipo == 'V') {
-                    p.totalVendido -= t.detalles[i].cantidad;  // Revertir salida
-                }
+                if (t.tipo == 'C') p.totalComprado -= t.detalles[i].cantidad;
+                else if (t.tipo == 'V') p.totalVendido -= t.detalles[i].cantidad;
                 
                 fProd.seekp(posP, ios::beg);
                 fProd.write(reinterpret_cast<char*>(&p), sizeof(Producto));
@@ -2059,7 +2879,34 @@ void cancelarTransaccion() {
             }
         }
 
-        // Marcar inactiva
+        // 2. REVERSIÓN DE CAJA (IMPORTANTE)
+        if (t.tipo == 'C') {
+            actualizarCajaTienda(t.total, true);  // Si anulamos compra, recuperamos dinero
+        } else {
+            actualizarCajaTienda(t.total, false); // Si anulamos venta, devolvemos dinero
+        }
+
+    if (t.tipo == 'V') {
+    int idxCli = buscarClientePorId(t.idRelacionado);
+    if (idxCli != -1) {
+        Cliente c = leerClientePorIndice(idxCli);
+        c.totalComprasRealizadas--;
+        c.montoTotalGastado -= t.total;
+        c.fechaUltimaModificacion = time(0);
+        escribirClientePorIndice(idxCli, c);
+         }
+    } else if (t.tipo == 'C') {
+    int idxProv = buscarIndiceProveedor(t.idRelacionado);
+    if (idxProv != -1) {
+        Proveedor p = leerProveedorPorIndice(idxProv);
+        p.totalSuministros--;
+        p.totalPagado -= t.total;
+        p.fechaUltimaModificacion = time(0);
+        escribirProveedorPorIndice(idxProv, p);
+         }
+    }
+
+        // 3. MARCAR COMO INACTIVA
         t.activo = false;
         t.fechaUltimaModificacion = time(0);
         archivo.seekp(posicion, ios::beg);
@@ -2069,20 +2916,24 @@ void cancelarTransaccion() {
         h.registrosActivos--;
         actualizarHeader("transacciones.bin", h);
 
-        cout << "\n[OK] Transaccion anulada y el inventario ha sido ajustado.\n";
+        cout << "\n[OK] Transaccion anulada: Stock y Caja ajustados.\n";
     }
     archivo.close();
     pausarYlimpiarpantalla();
 }
 
 void restaurarTransacciones() {
-    if (!tieneDatos("transacciones.bin"))
-    {
+    if (!tieneDatos("transacciones.bin")) {
         cout << "[!] No hay transacciones registradas.\n";
         pausarYlimpiarpantalla(); return;
     }
-    int idBuscar = pedirEntero("Ingrese el ID de la transaccion anulada a restaurar: ");
-    
+
+    int idBuscar;
+    mostrarInstruccionESC();
+    // 1. Uso de función cancelable con ESC
+    if (!pedirEnteroCancelable("Ingrese el ID de la transaccion anulada a restaurar", idBuscar)) return;
+
+    // --- Búsqueda del índice ---
     int indice = -1;
     ifstream archivoLectura("transacciones.bin", ios::binary);
     Header hL; archivoLectura.read(reinterpret_cast<char*>(&hL), sizeof(Header));
@@ -2109,8 +2960,56 @@ void restaurarTransacciones() {
         archivo.close(); pausarYlimpiarpantalla(); return;
     }
 
-    // Verificación de viabilidad (Si es VENTA, debemos asegurar que hay stock para restaurarla)
+    // 2. Verificación de viabilidad (Stock y Caja)
     if (t.tipo == 'V') {
+        // Para restaurar una Venta: Necesitamos tener Stock
+        for (int i = 0; i < t.cantidaditems; i++) {
+            int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
+            if (idxProd != -1) {
+                Producto p = leerProductoPorIndice(idxProd);
+                int stockActual = (p.stockInicial + p.totalComprado) - p.totalVendido;
+                
+                if (stockActual < t.detalles[i].cantidad) {
+                    cout << "\n[!] ERROR: No hay stock suficiente de '" << p.nombre << "' para restaurar la venta.\n";
+                    archivo.close(); pausarYlimpiarpantalla(); return;
+                }
+            }
+        }
+    } else if (t.tipo == 'C') {
+        if (!hayDineroEnCaja(t.total)) { 
+            cout << "\n[!] ERROR: No se puede restaurar la compra." << endl;
+            cout << "[!] Saldo insuficiente en la tienda para cubrir este gasto." << endl;
+            archivo.close(); 
+            pausarYlimpiarpantalla(); 
+            return;
+         }
+    }
+
+    cout << "\n¿Confirmar RESTAURACION de la transaccion #" << t.id << "? (S/N): ";
+    char conf; cin >> conf; vaciarBuffer();
+
+
+    if (t.tipo == 'V') {
+    int idxCli = buscarClientePorId(t.idRelacionado);
+    if (idxCli != -1) {
+        Cliente c = leerClientePorIndice(idxCli);
+        c.totalComprasRealizadas++;
+        c.montoTotalGastado += t.total;
+        c.fechaUltimaModificacion = time(0);
+        escribirClientePorIndice(idxCli, c);
+         }
+    } else if (t.tipo == 'C') {
+    int idxProv = buscarIndiceProveedor(t.idRelacionado);
+    if (idxProv != -1) {
+        Proveedor p = leerProveedorPorIndice(idxProv);
+        p.totalSuministros++;
+        p.totalPagado += t.total;
+        p.fechaUltimaModificacion = time(0);
+        escribirProveedorPorIndice(idxProv, p);
+            }
+        }
+    if (toupper(conf) == 'S') {
+        // 3. REACTIVACIÓN DE STOCK
         for (int i = 0; i < t.cantidaditems; i++) {
             int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
             if (idxProd != -1) {
@@ -2119,47 +3018,248 @@ void restaurarTransacciones() {
                 fProd.seekg(posP, ios::beg);
                 Producto p;
                 fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
-                fProd.close();
 
-                if (calcularStockActual(p) < t.detalles[i].cantidad) {
-                    cout << "\n[!] ERROR: No se puede restaurar la venta." << endl;
-                    cout << "[!] El producto '" << p.nombre << "' no tiene stock suficiente para cubrir la reactivación." << endl;
-                    archivo.close(); pausarYlimpiarpantalla(); return;
+                if (t.tipo == 'C') p.totalComprado += t.detalles[i].cantidad;
+                else if (t.tipo == 'V') p.totalVendido += t.detalles[i].cantidad;
+                
+                fProd.seekp(posP, ios::beg);
+                fProd.write(reinterpret_cast<char*>(&p), sizeof(Producto));
+                fProd.close();
+            }
+        }
+
+        // 4. REACTIVACIÓN EN CAJA (NUEVO)
+        if (t.tipo == 'C') {
+            actualizarCajaTienda(t.total, false); // Vuelve a restar el dinero (Gasto)
+        } else {
+            actualizarCajaTienda(t.total, true);  // Vuelve a sumar el dinero (Ingreso)
+        }
+
+        // 5. MARCAR COMO ACTIVA
+        t.activo = true;
+        t.fechaUltimaModificacion = time(0);
+        archivo.seekp(posicion, ios::beg);
+        archivo.write(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+        
+        Header h = leerHeader("transacciones.bin");
+        h.registrosActivos++;
+        actualizarHeader("transacciones.bin", h);
+
+        cout << "\n[OK] Transaccion restaurada. Inventario y Caja sincronizados.\n";
+    }
+
+    archivo.close();
+    pausarYlimpiarpantalla();
+}
+
+void verificarIntegridadReferencial() {
+    cout << "\n==================================================" << endl;
+    cout << "     DIAGNOSTICO DE INTEGRIDAD DE DATOS           " << endl;
+    cout << "==================================================" << endl;
+    
+    int erroresEncontrados = 0;
+
+    // 1. Verificar Productos -> Proveedores
+    cout << "[i] Verificando relacion: Productos -> Proveedores..." << endl;
+    ifstream archProd("productos.bin", ios::binary);
+    if (archProd) {
+        Header hProd; archProd.read(reinterpret_cast<char*>(&hProd), sizeof(Header));
+        Producto p;
+        for (int i = 0; i < hProd.cantidadRegistros; i++) {
+            archProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+            if (p.activo) {
+                // Si el producto está activo, su proveedor DEBE existir y estar activo
+                if (!existeProveedor(p.idProveedor)) {
+                    cout << "  [!] ALERTA: Producto ID " << p.id << " ('" << p.nombre << "') apunta al Proveedor ID " 
+                         << p.idProveedor << " el cual NO EXISTE o fue eliminado." << endl;
+                    erroresEncontrados++;
                 }
             }
         }
+        archProd.close();
     }
 
-    // REACTIVACIÓN DE STOCK
-    for (int i = 0; i < t.cantidaditems; i++) {
-        int idxProd = buscarProductoPorId(t.detalles[i].idProducto);
-        if (idxProd != -1) {
-            fstream fProd("productos.bin", ios::in | ios::out | ios::binary);
-            long posP = sizeof(Header) + (idxProd * sizeof(Producto));
-            fProd.seekg(posP, ios::beg);
-            Producto p;
-            fProd.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+    // 2. Verificar Transacciones -> Entidades y Productos
+    cout << "[i] Verificando relacion: Transacciones -> Clientes/Proveedores/Productos..." << endl;
+    ifstream archTrans("transacciones.bin", ios::binary);
+    if (archTrans) {
+        Header hTrans; archTrans.read(reinterpret_cast<char*>(&hTrans), sizeof(Header));
+        Transaccion t;
+        for (int i = 0; i < hTrans.cantidadRegistros; i++) {
+            archTrans.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+            if (t.activo) {
+                // Verificar Entidad Relacionada
+                if (t.tipo == 'C' && !existeProveedor(t.idRelacionado)) {
+                    cout << "  [!] ALERTA: Transaccion COMPRA ID " << t.id << " apunta al Proveedor ID " 
+                         << t.idRelacionado << " (No encontrado/Inactivo)." << endl;
+                    erroresEncontrados++;
+                } else if (t.tipo == 'V' && !existeCliente(t.idRelacionado)) {
+                    cout << "  [!] ALERTA: Transaccion VENTA ID " << t.id << " apunta al Cliente ID " 
+                         << t.idRelacionado << " (No encontrado/Inactivo)." << endl;
+                    erroresEncontrados++;
+                }
 
-            if (t.tipo == 'C') p.totalComprado += t.detalles[i].cantidad;
-            else if (t.tipo == 'V') p.totalVendido += t.detalles[i].cantidad;
-            
-            fProd.seekp(posP, ios::beg);
-            fProd.write(reinterpret_cast<char*>(&p), sizeof(Producto));
-            fProd.close();
+                // Verificar Detalles (Productos en la factura)
+                for (int j = 0; j < t.cantidaditems; j++) {
+                    if (!existeProducto(t.detalles[j].idProducto)) {
+                        cout << "  [!] ALERTA: Transaccion ID " << t.id << " contiene el Producto ID " 
+                             << t.detalles[j].idProducto << " (No encontrado/Inactivo)." << endl;
+                        erroresEncontrados++;
+                    }
+                }
+            }
         }
+        archTrans.close();
     }
 
-    t.activo = true;
-    t.fechaUltimaModificacion = time(0);
-    archivo.seekp(posicion, ios::beg);
-    archivo.write(reinterpret_cast<char*>(&t), sizeof(Transaccion));
-    archivo.close();
+    cout << "--------------------------------------------------" << endl;
+    if (erroresEncontrados == 0) {
+        cout << "[OK] Excelente. No se detectaron referencias rotas." << endl;
+        cout << "[OK] La integridad de la base de datos esta al 100%." << endl;
+    } else {
+        cout << "[!] DIAGNOSTICO: Se encontraron " << erroresEncontrados << " errores de integridad." << endl;
+        cout << "[!] Se recomienda revisar los registros manuales." << endl;
+    }
+    cout << "==================================================" << endl;
+    
+    pausarYlimpiarpantalla();
+}
 
-    Header h = leerHeader("transacciones.bin");
-    h.registrosActivos++;
-    actualizarHeader("transacciones.bin", h);
+void generarReportes() {
+    if(!tieneDatos("productos.bin") && !tieneDatos("transacciones.bin")) {
+        cout << "\n[!] No hay datos suficientes para generar reportes analíticos." << endl;
+        cout << "[!] Asegurese de tener productos registrados y transacciones realizadas." << endl;
+        pausarYlimpiarpantalla();
+        return;
+    }
+    int opcion;
+    do {
+        cout << "\n╔═══════════════════════════════════════════╗" << endl;
+        cout << "║           REPORTES ANALÍTICOS             ║" << endl;
+        cout << "╚═══════════════════════════════════════════╝" << endl;
+        cout << "1. Reporte de Productos con Stock Critico" << endl;
+        cout << "2. Historial de Compras por Cliente" << endl;
+        cout << "0. Volver" << endl;
+        opcion = pedirEntero("Seleccione un reporte: ");
 
-    cout << "\n[OK] Transaccion restaurada exitosamente. Efectos en el inventario aplicados.\n";
+        if (opcion == 1) {
+            // REPORTE 1: STOCK CRÍTICO
+            cout << "\n--- PRODUCTOS CON STOCK CRITICO O AGOTADO ---" << endl;
+            ifstream archivo("productos.bin", ios::binary);
+            if (!archivo) { cout << "[!] Error de archivo.\n"; continue; }
+            
+            Header h; archivo.read(reinterpret_cast<char*>(&h), sizeof(Header));
+            Producto p;
+            bool hayCriticos = false;
+            
+            cout << left << setw(8) << "ID" << setw(30) << "PRODUCTO" << setw(15) << "STOCK ACTUAL" << "STOCK MINIMO" << endl;
+            cout << "----------------------------------------------------------------------" << endl;
+            
+            for (int i = 0; i < h.cantidadRegistros; i++) {
+                archivo.read(reinterpret_cast<char*>(&p), sizeof(Producto));
+                if (p.activo) {
+                    int stockActual = calcularStockActual(p);
+                    if (stockActual <= p.stockminimo) {
+                        hayCriticos = true;
+                        cout << left << setw(8) << p.id << setw(30) << p.nombre 
+                             << setw(15) << stockActual << p.stockminimo << endl;
+                    }
+                }
+            }
+            if (!hayCriticos) cout << "[OK] Todos los productos tienen un nivel de stock saludable." << endl;
+            archivo.close();
+            pausarYlimpiarpantalla();
+
+        } else if (opcion == 2) {
+            // REPORTE 2: HISTORIAL DE CLIENTE
+            int idCliente = pedirEntero("\nIngrese ID del Cliente para ver su historial: ");
+            if (!existeCliente(idCliente)) {
+                cout << "[!] Cliente no encontrado o inactivo." << endl;
+            } else {
+                mostrarcliente(idCliente); // Tu función existente que imprime los datos básicos
+                cout << "\n--- HISTORIAL DE COMPRAS DEL CLIENTE ---" << endl;
+                
+                ifstream archTrans("transacciones.bin", ios::binary);
+                if (archTrans) {
+                    Header ht; archTrans.read(reinterpret_cast<char*>(&ht), sizeof(Header));
+                    Transaccion t;
+                    bool tieneCompras = false;
+                    
+                    for (int i = 0; i < ht.cantidadRegistros; i++) {
+                        archTrans.read(reinterpret_cast<char*>(&t), sizeof(Transaccion));
+                        // Filtramos ventas ('V') asociadas a este cliente y que no estén anuladas
+                        if (t.tipo == 'V' && t.idRelacionado == idCliente && t.activo) {
+                            tieneCompras = true;
+                            cout << " > Fecha: " << t.fecha << " | Factura #" << t.id << " | Total: $" << fixed << setprecision(2) << t.total << endl;
+                            // Imprimir el detalle de los productos recuperando el nombre
+                            for(int j = 0; j < t.cantidaditems; j++){
+                                char nombreProd[100];
+                                obtenerNombreGenerico("productos.bin", t.detalles[j].idProducto, nombreProd);
+                                cout << "    - " << t.detalles[j].cantidad << "x " << nombreProd << " ($" << t.detalles[j].precioUnitario << " c/u)" << endl;
+                            }
+                        }
+                    }
+                    if(!tieneCompras) cout << "  [i] Este cliente aun no ha realizado compras." << endl;
+                    archTrans.close();
+                }
+            }
+            pausarYlimpiarpantalla();
+        }
+    } while (opcion != 0);
+}
+
+void crearBackup() {
+    // Generar prefijo de archivo basado en la fecha y hora actual del PC
+    time_t t_actual = time(0);
+    struct tm * tiempo = localtime(&t_actual);
+    char prefijo[50];
+    // Formato: backup_YYYYMMDD_HHMM_
+    sprintf(prefijo, "backup_%04d%02d%02d_%02d%02d_", 
+            (tiempo->tm_year + 1900), (tiempo->tm_mon + 1), tiempo->tm_mday, 
+            tiempo->tm_hour, tiempo->tm_min);
+
+    const char* archivos[] = {
+        "tienda.bin", 
+        "productos.bin", 
+        "proveedores.bin", 
+        "clientes.bin", 
+        "transacciones.bin"
+    };
+
+    cout << "\n==================================================" << endl;
+    cout << "          CREANDO RESPALDO DE SEGURIDAD           " << endl;
+    cout << "==================================================" << endl;
+    
+    int respaldados = 0;
+
+    for (int i = 0; i < 5; i++) {
+        char nombreDestino[100];
+        strcpy(nombreDestino, prefijo);
+        strcat(nombreDestino, archivos[i]); // Concatena el prefijo con el nombre original
+
+        ifstream origen(archivos[i], ios::binary);
+        if (origen) {
+            ofstream destino(nombreDestino, ios::binary);
+            // Copia extremadamente rápida usando el buffer nativo de C++
+            destino << origen.rdbuf(); 
+            
+            cout << "[OK] Archivo asegurado: " << nombreDestino << endl;
+            destino.close();
+            respaldados++;
+        } else {
+            cout << "[!] Archivo vacio o inexistente (ignorado): " << archivos[i] << endl;
+        }
+        origen.close();
+    }
+
+    cout << "--------------------------------------------------" << endl;
+    if (respaldados > 0) {
+        cout << "[EXITO] Se genero copia de seguridad de " << respaldados << " archivos." << endl;
+    } else {
+        cout << "[!] No se pudo respaldar la informacion. Verifique los archivos origen." << endl;
+    }
+    cout << "==================================================" << endl;
+    
     pausarYlimpiarpantalla();
 }
 
@@ -2195,7 +3295,10 @@ int main() {
         cout << "2. Gestión de Proveedores" << endl;
         cout << "3. Gestión de Clientes" << endl;
         cout << "4. Gestión de Transacciones" << endl;
-        cout << "5. Salir" << endl;
+        cout << "5. Verificar Integridad referencial" << endl;
+        cout << "6. Reportes Analiticos" << endl;
+        cout << "7. Crear Backup Manual" << endl;
+        cout << "8. Salir" << endl;
         cout << "Seleccione una opción: ";
         cin >> opcion;
         vaciarBuffer();
@@ -2237,6 +3340,7 @@ int main() {
                         case 3: actualizarCliente(); break;
                         case 4: listarClientes(); break;
                         case 5: eliminarCliente(); break;
+                        case 6: restaurarCliente(); break;
                     }
                 } while(subOp != 0);
                 break;
@@ -2254,7 +3358,19 @@ int main() {
                     }
                 } while(subOp != 0);
                 break;
+            
             case 5:
+                verificarIntegridadReferencial();
+                break;
+
+            case 6:
+                generarReportes();
+                break;
+            
+            case 7:
+                crearBackup();
+                break;
+            case 8:
                 cout << "Cerrando sesión de " << miTienda.nombre << "..." << endl;
                 ejecutando = false;
                 break;
