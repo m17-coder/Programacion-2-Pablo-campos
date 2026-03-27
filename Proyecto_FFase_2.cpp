@@ -441,7 +441,7 @@ int buscarPosicion(const char* nombreArchivo, int idBuscar) {
         archivo.read(reinterpret_cast<char*>(&reg), sizeof(T));
         if (reg.id == idBuscar && reg.activo) {
             archivo.close();
-            return i; // Retorna el índice exacto (0, 1, 2...)
+            return i; 
         }
     }
 
@@ -2514,7 +2514,6 @@ void verificarIntegridadReferencial() {
     pausarYlimpiarpantalla();
 }
 void generarReportes() {
-    // Verificación inicial usando tus templates (sin ID para chequear si hay datos)
     if(!validarExistencia<Producto>("productos.bin") && !validarExistencia<Transaccion>("transacciones.bin")) {
         cout << "\n[!] No hay datos suficientes para generar reportes analíticos." << endl;
         cout << "[!] Asegurese de tener productos registrados y transacciones realizadas." << endl;
@@ -2542,7 +2541,7 @@ void generarReportes() {
             bool hayCriticos = false;
 
             for (int i = 0; i < h.cantidadRegistros; i++) {
-                // Usamos tu template de lectura por índice
+
                 Producto p = leerRegistroPorIndice<Producto>("productos.bin", i);
                 
                 if (p.activo) {
