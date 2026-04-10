@@ -333,7 +333,6 @@ del código sin preocuparnos por el orden de las funciones.
 void vaciarBuffer();
 void pausarYlimpiarpantalla();
 bool contieneSubstring(const char* texto, const char* busqueda);
-void convertirAMinusculas(char* cadena);
 bool pedirEnteroCancelable(const char* etiqueta, int &valor);
 bool pedirTextoCancelable(const char* mensaje, char* destino, int tamano);
 bool confirmarAccion(const char* mensaje);
@@ -387,15 +386,6 @@ Header leerHeader(const char* nombreArchivo) {
     return h;
 }
 
-
-void actualizarHeader(const char* nombreArchivo, Header h) {
-    fstream archivo(nombreArchivo, ios::in | ios::out | ios::binary);
-    if (archivo) {
-        archivo.seekp(0, ios::beg); // Nos movemos al puro inicio
-        archivo.write(reinterpret_cast<char*>(&h), sizeof(Header));
-        archivo.close();
-    }
-}
 //----------------------------------------------------------------//
 
 //templates a usar//
@@ -1060,27 +1050,6 @@ void listarProductosEliminados() {
     pausarYlimpiarpantalla();
 }
 
-void pedirSoloLetras(const char* mensaje, char* destino, int longitud_texto) {
-    bool valido;
-    do {
-        valido = true;
-        cout << mensaje;
-        cin.getline(destino, longitud_texto);
-
-        for (int i = 0; i < strlen(destino); i++) {
-            // isalpha revisa si es letra. También permitimos espacios ' '
-            if (!isalpha(destino[i]) && destino[i] != ' ') {
-                valido = false;
-                break;
-            }
-        }
-
-        if (!valido) {
-            cout << "[!] Error: No se permiten numeros o simbolos en este campo." << endl;
-        }
-    } while (!valido);
-}
-
 //-----------------------------------------------------------------------------------------//
 
 // Validaciones específicas para cada campo, como verificar que un ID exista o que un código de producto sea único, etc. Estas funciones se pueden llamar dentro de los procesos de creación o actualización para asegurar la integridad de los datos.
@@ -1268,7 +1237,6 @@ bool validarFloatPositivo(const char* etiqueta, float &destino) {
 }
 
 bool contieneSubstring(const char* texto, const char* busqueda){
-    if(texto == nullptr || busqueda == nullptr) return false;
     int lenTexto = strlen(texto);
     int lenBusqueda = strlen(busqueda);
     if (lenBusqueda > lenTexto) return false;
@@ -1285,12 +1253,6 @@ bool contieneSubstring(const char* texto, const char* busqueda){
     return false;
 }
 
-void convertirAMinusculas(char* cadena){
-    if(cadena == nullptr) return;
-    for (int i = 0; cadena[i] != '\0'; i++) {
-        cadena[i] = tolower(cadena[i]);
-    }
-}
 //------------------------------------------------//
 
 //CRUDS//
@@ -1326,8 +1288,7 @@ void crearProducto() {
         char nombreProv[100];
         do {
             if (!pedirEnteroCancelable("ID del Proveedor suministrador", p.idProveedor)) return false;
-            
-            // Usamos el template que ya tienes creado
+        
             if (validarExistencia<Proveedor>("proveedores.bin", p.idProveedor)) {
                 obtenerNombrePorID<Proveedor>("proveedores.bin", p.idProveedor, nombreProv);
                 cout << "  [OK] Proveedor verificado: " << nombreProv << endl;

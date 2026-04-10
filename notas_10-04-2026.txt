@@ -1,0 +1,18 @@
+REPORTE DE NOTAS - INSTITUTO TECNOLOGICO ABC
+Fecha: 10/04/2026 12:54:16
+==========================================================================================
+NOMBRE                   MATRICULA   CARRERA         P1     P2     P3     FINAL   ESTADO      
+------------------------------------------------------------------------------------------
+Sofia Ramirez            INGC-1001   Ingenieria      85.00  90.00  88.00  87.67   APROBADO    
+Alejandro Vargas         MEDC-2001   Medicina        72.00  65.00  58.00  65.00   APROBADO    
+Valentina Morales        DERC-3001   Derecho         92.00  95.00  97.00  94.67   APROBADO    
+Miguel Angel Herrera     INGC-1002   Ingenieria      55.00  60.00  62.00  59.00   APROBADO    
+Camila Andrea Rios       PSIC-4001   Psicologia      78.00  82.00  75.00  78.33   APROBADO    
+Daniel Felipe Castro     ADMC-5001   Administracion  45.00  50.00  40.00  45.00   APROBADO    
+Isabella Jimenez         MEDC-2002   Medicina        88.00  91.00  93.00  90.67   APROBADO    
+Mariana Lopez Vega       INGC-1003   Ingenieria      63.00  58.00  61.00  60.67   APROBADO    
+Andres Felipe Mora       DERC-3002   Derecho         70.00  75.00  80.00  75.00   APROBADO    
+Paula Garcia Mendez      PSIC-4002   Psicologia      95.00  92.00  98.00  95.00   APROBADO    
+Juan Pablo Ortiz         ADMC-5002   Administracion  60.00  62.00  65.00  62.33   APROBADO    
+==========================================================================================
+Aprobados: 12 | Reprobados: 0
