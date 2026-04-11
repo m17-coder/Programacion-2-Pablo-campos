@@ -1,8 +1,10 @@
 #ifndef ESTUDIANTES_HPP
 #define ESTUDIANTES_HPP
 #include <string>
-#include "COLEGIO.hpp"
 #include <iostream>
+
+class Colegio;
+
     class Estudiantes{
         private:
             std::string alumno;
@@ -20,7 +22,7 @@
             void setNota(double n1,double n2,double n3);
             void setAsistencia(double asist);
             void setInscrito(bool estado);
-            double calcularFinal(Colegio uru);
+            double calcularFinal(Colegio& uru);
             std::string getNombre();
             std::string getMatricula();
             std::string getCarrera();
@@ -31,11 +33,14 @@
             double getAsistencia();
             bool getInscrito();
             double getNotaFinal();
-            bool estaEnRiesgo(Colegio uru);
-            void agregarEstudiante(Colegio uru);
-            void calcularNotaIndividual(Colegio uru);
+            bool estaEnRiesgo(Colegio& uru);
+            void agregarEstudiante(Colegio& uru);
+            void calcularNotaIndividual(Colegio& uru);
 
 // configuracion academica
 
 };
+
+void cargarDatosPrueba();
+
 #endif // ESTUDIANTES_HPP

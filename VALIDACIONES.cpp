@@ -1,9 +1,13 @@
 #include "VALIDACIONES.hpp"
 #include "UTILIDADES.hpp"
 #include "ESTUDIANTES.hpp"
+#include "COLEGIO.hpp"
 #include <iostream>
 
 using namespace std;
+
+extern Estudiantes est[80];
+extern Colegio colegio;
 
 bool validarMatricula(string mat) {
     // formato: AAAA-NNNN (4 letras, guion, 4 numeros)
@@ -18,11 +22,11 @@ bool validarMatricula(string mat) {
     return true;
 }
 
-bool validarMatriculaUnica(string mat, int excluirIdx = -1) {
+bool validarMatriculaUnica(string mat, int excluirIdx) {
     string matUpper = aMayusculas(mat);
-    for (int i = 0; i < cantAlumnos; i++) {
+    for (int i = 0; i < colegio.getCantAlumnos(); i++) {
         if (i == excluirIdx) continue;
-        if (aMayusculas(matricula[i]) == matUpper) return false;
+        if (aMayusculas(est[i].getMatricula()) == matUpper) return false;
     }
     return true;
 }
@@ -47,10 +51,7 @@ bool validarNombre(string nombre) {
 }
 
 bool validarCarrera(string carr) {
-    for (int i = 0; i < totalCarreras; i++) {
-        if (compararIgnorandoCase(carr, carrerasValidas[i])) return true;
-    }
-    return false;
+    return colegio.validarCarrera(carr);
 }
 
 bool validarSemestre(int sem) {

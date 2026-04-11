@@ -2,6 +2,9 @@
 #include "VALIDACIONES.hpp"
 #include "UTILIDADES.hpp"
 #include <iostream>
+#include <cmath>
+#include<fstream>
+
 bool Colegio::validarCarrera(std::string carr){
     for (int i = 0; i < totalCarreras; i++) {
         if (compararIgnorandoCase(carr, carrerasValidas[i])) return true;
@@ -298,6 +301,9 @@ double Colegio::getAsistenciaMinima() { return asistenciaMinima; }
 int Colegio::getAprobados() { return aprobados; }
 int Colegio::getReprobados() { return reprobados; }
 int Colegio::getCantAlumnos() { return cantAlumnos; }
+void Colegio::setCantAlumnos(int cant) { cantAlumnos = cant; }
+void Colegio::setAprovados(int ap) { aprobados = ap; }
+void Colegio::setReprobados(int rep) { reprobados = rep; }
 void Colegio::toggleInscripcion(Estudiantes est) {
     if (cantAlumnos == 0) {
         std::cout << "No hay estudiantes." << std::endl;
@@ -401,8 +407,8 @@ void Colegio::estadisticas(Estudiantes est[]) {
     // desviacion estandar
     double sumaDif = 0;
     for (int i = 0; i < cantAlumnos; i++) {
-        if (!inscrito[i]) continue;
-        sumaDif += pow(notaFinal[i] - promedio, 2);
+        if (!est[i].getInscrito()) continue;
+        sumaDif += pow(est[i].getNotaFinal() - promedio, 2);
     }
     double desviacion = sqrt(sumaDif / cantActivos);
 
@@ -410,8 +416,8 @@ void Colegio::estadisticas(Estudiantes est[]) {
     double notasOrdenadas[80];
     int k = 0;
     for (int i = 0; i < cantAlumnos; i++) {
-        if (!inscrito[i]) continue;
-        notasOrdenadas[k++] = notaFinal[i];
+        if (!est[i].getInscrito()) continue;
+        notasOrdenadas[k++] = est[i].getNotaFinal();
     }
     // burbuja para ordenar
     for (int i = 0; i < k - 1; i++) {
@@ -433,8 +439,8 @@ void Colegio::estadisticas(Estudiantes est[]) {
     // contar por letra
     int contA = 0, contB = 0, contC = 0, contD = 0, contF = 0;
     for (int i = 0; i < cantAlumnos; i++) {
-        if (!inscrito[i]) continue;
-        std::string letra = obtenerLetra(notaFinal[i]);
+        if (!est[i].getInscrito()) continue;
+        std::string letra = obtenerLetra(est[i].getNotaFinal());
         if (letra == "A") contA++;
         else if (letra == "B") contB++;
         else if (letra == "C") contC++;
@@ -476,5 +482,192 @@ void Colegio::estadisticas(Estudiantes est[]) {
     std::cout << "  D (60-69):  " << contD << "  " << barraProgreso(contD * 100.0 / cantActivos, 15) << std::endl;
     std::cout << "  F (0-59):   " << contF << "  " << barraProgreso(contF * 100.0 / cantActivos, 15) << std::endl;
     std::cout << lineaSeparadora(60, '=') << std::endl;
-    Colegio.registrarLog("Estadisticas del curso generadas");
+    registrarLog("Estadisticas del curso generadas");
+}
+
+void Colegio:: editarEstudiante(Estudiantes est[80]) {
+    if (getCantAlumnos() == 0) {
+        std::cout << "No hay estudiantes." << std::endl;
+        return;
+    }
+    int num = validarEntradaEntera("Numero de estudiante (1-" + std::to_string(getCantAlumnos()) + "): ", 1, getCantAlumnos());
+    num--;
+
+    std::cout << "\nEditando: " << est[num].getNombre() << " (" << est[num].getMatricula() << ")" << std::endl;
+    std::cout << "1. Nombre (" << est[num].getNombre() << ")" << std::endl;
+    std::cout << "2. Carrera (" << est[num].getCarrera() << ")" << std::endl;
+    std::cout << "3. Semestre (" << est[num].getSemestre() << ")" << std::endl;
+    std::cout << "4. Nota P1 (" << formatoNota(est[num].getNota1()) << ")" << std::endl;
+    std::cout << "5. Nota P2 (" << formatoNota(est[num].getNota2()) << ")" << std::endl;
+    std::cout << "6. Nota P3 (" << formatoNota(est[num].getNota3()) << ")" << std::endl;
+    std::cout << "7. Asistencia (" << formatoNota(est[num].getAsistencia()) << "%)" << std::endl;
+    std::cout << "8. Cancelar" << std::endl;
+
+    int campo = validarEntradaEntera("Campo a editar: ", 1, 8);
+
+    switch (campo) {
+        case 1: {
+            std::string nuevoNombre;
+            std::cout << "Nuevo nombre: ";
+            std::cin.ignore();
+            std::getline(std::cin, nuevoNombre);
+            nuevoNombre = recortarEspacios(nuevoNombre);
+            if (validarNombre(nuevoNombre)) {
+                registrarLog("Nombre cambiado: " + est[num].getNombre() + " -> " + nuevoNombre);
+                est[num].setNombre(nuevoNombre);
+                std::cout << "Nombre actualizado." << std::endl;
+            } else {
+                std::cout << "Nombre invalido." << std::endl;
+            }
+            break;
+        }
+        case 2: {
+            std::string nuevaCarrera;
+            std::cout << "Carreras: ";
+            for (int i = 0; i < totalCarreras; i++) std::cout << carrerasValidas[i] << " ";
+            std::cout << "\nNueva carrera: ";
+            std::cin.ignore();
+            std::getline(std::cin, nuevaCarrera);
+            nuevaCarrera = recortarEspacios(nuevaCarrera);
+            if (validarCarrera(nuevaCarrera)) {
+                for (int i = 0; i < totalCarreras; i++) {
+                    if (compararIgnorandoCase(nuevaCarrera, carrerasValidas[i])) {
+                        nuevaCarrera = carrerasValidas[i];
+                        break;
+                    }
+                }
+                registrarLog("Carrera cambiada para " + est[num].getNombre());
+                est[num].setCarrera(nuevaCarrera);
+                std::cout << "Carrera actualizada." << std::endl;
+            } else {
+                std::cout << "Carrera no valida." << std::endl;
+            }
+            break;
+        }
+        case 3:
+            est[num].setSemestre(validarEntradaEntera("Nuevo semestre (1-12): ", 1, 12));
+            std::cout << "Semestre actualizado." << std::endl;
+            break;
+        case 4:
+            est[num].setNota(validarEntradaDecimal("Nueva nota P1 (0-100): ", 0, 100), 0, 0);
+            std::cout << "Nota P1 actualizada." << std::endl;
+            registrarLog("Nota P1 actualizada para " + est[num].getNombre());
+            break;
+        case 5:
+            est[num].setNota(0, validarEntradaDecimal("Nueva nota P2 (0-100): ", 0, 100), 0);
+            std::cout << "Nota P2 actualizada." << std::endl;
+            registrarLog("Nota P2 actualizada para " + est[num].getNombre());
+            break;
+        case 6:
+            est[num].setNota(0, 0, validarEntradaDecimal("Nueva nota P3 (0-100): ", 0, 100));
+            std::cout << "Nota P3 actualizada." << std::endl;
+            registrarLog("Nota P3 actualizada para " + est[num].getNombre());
+            break;
+        case 7:
+            est[num].setAsistencia(validarEntradaDecimal("Nueva asistencia (0-100%): ", 0, 100));
+            std::cout << "Asistencia actualizada." << std::endl;
+            break;
+        case 8:
+            std::cout << "Edicion cancelada." << std::endl;
+            return;
+    }
+}
+void Colegio:: reportePorCarrera(Estudiantes est[]) {
+    if (cantAlumnos == 0) {
+        std::cout << "No hay estudiantes." << std::endl;
+        return;
+    }
+
+    std::cout << "\n" << lineaSeparadora(65, '=') << std::endl;
+    std::cout << "         REPORTE POR CARRERA" << std::endl;
+    std::cout << lineaSeparadora(65, '=') << std::endl;
+
+    for (int c = 0; c < totalCarreras; c++) {
+        int cantEnCarrera = 0;
+        double sumaNotas = 0;
+        double sumaAsist = 0;
+        int aprobCarrera = 0;
+
+        for (int i = 0; i < cantAlumnos; i++) {
+            if (!est[i].getInscrito()) continue;
+            if (compararIgnorandoCase(est[i].getCarrera(), carrerasValidas[c])) {
+                cantEnCarrera++;
+            }
+        }
+
+        if (cantEnCarrera == 0) continue;
+
+        std::cout << "\n>> " << aMayusculas(carrerasValidas[c]) << " (" << cantEnCarrera << " estudiantes)" << std::endl;
+        std::cout << lineaSeparadora(60, '-') << std::endl;
+
+        for (int i = 0; i < cantAlumnos; i++) {
+            if (!est[i].getInscrito()) continue;
+            if (compararIgnorandoCase(est[i].getCarrera(), carrerasValidas[c])) {
+                double f = est[i].calcularFinal(*this);
+                sumaNotas += f;
+                sumaAsist += est[i].getAsistencia();
+                if (f >= notaMinima) aprobCarrera++;
+                std::cout << "  " << rellenarDerecha(est[i].getNombre(), 25)
+                     << " | Sem " << est[i].getSemestre()
+                     << " | Final: " << rellenarDerecha(formatoNota(f), 7)
+                     << " (" << obtenerLetra(f) << ")"
+                     << " | Asist: " << formatoNota(est[i].getAsistencia()) << "%" << std::endl;
+            }
+        }
+
+        std::cout << "  " << lineaSeparadora(55, '.') << std::endl;
+        std::cout << "  Promedio: " << formatoNota(sumaNotas / cantEnCarrera)
+             << " | Asist. promedio: " << formatoNota(sumaAsist / cantEnCarrera) << "%"
+             << " | Aprobacion: " << formatoNota(aprobCarrera * 100.0 / cantEnCarrera) << "%" << std::endl;
+    }
+
+    std::cout << "\n" << lineaSeparadora(65, '=') << std::endl;
+    registrarLog("Reporte por carrera generado");
+}
+
+void Colegio::exportarNotas(Estudiantes est[80]){
+    if (cantAlumnos == 0) {
+        std::cout << "No hay datos para exportar." << std::endl;
+        return;
+    }
+
+    std::string nombreArchivo = "notas_" + obtenerFechaActual() + ".txt"; 
+    for (int i = 0; i < (int)nombreArchivo.length(); i++) {
+        if (nombreArchivo[i] == '/') nombreArchivo[i] = '-';
+    }
+
+    std::ofstream archivo(nombreArchivo);
+    if (!archivo.is_open()) {
+        std::cout << "Error: No se pudo crear el archivo." << std::endl;
+        return;
+    }
+
+    archivo << "REPORTE DE NOTAS - INSTITUTO TECNOLOGICO ABC" << std::endl;
+    archivo << "Fecha: " << obtenerFechaActual() << " " << obtenerHoraActual() << std::endl;
+    archivo << lineaSeparadora(90, '=') << std::endl;
+    archivo << rellenarDerecha("NOMBRE", 25) << rellenarDerecha("MATRICULA", 12)
+            << rellenarDerecha("CARRERA", 16) << rellenarDerecha("P1", 7)
+            << rellenarDerecha("P2", 7) << rellenarDerecha("P3", 7)
+            << rellenarDerecha("FINAL", 8) << rellenarDerecha("ESTADO", 12) << std::endl;
+    archivo << lineaSeparadora(90, '-') << std::endl;
+
+    for (int i = 0; i < cantAlumnos; i++) {
+        if (!est[i].getInscrito()) continue;
+        double f = est[i].calcularFinal(*this);
+        archivo << rellenarDerecha(est[i].getNombre(), 25)
+                << rellenarDerecha(est[i].getMatricula(), 12)
+                << rellenarDerecha(est[i].getCarrera(), 16)
+                << rellenarDerecha(formatoNota(est[i].getNota1()), 7)
+                << rellenarDerecha(formatoNota(est[i].getNota2()), 7)
+                << rellenarDerecha(formatoNota(est[i].getNota3()), 7)
+                << rellenarDerecha(formatoNota(f), 8)
+                << rellenarDerecha(obtenerEstado(f), 12) << std::endl;
+    }
+
+    archivo << lineaSeparadora(90, '=') << std::endl;
+    archivo << "Aprobados: " << aprobados << " | Reprobados: " << reprobados << std::endl;
+    archivo.close();
+
+    std::cout << "Notas exportadas a: " << nombreArchivo << std::endl;
+    registrarLog("Notas exportadas a: " + nombreArchivo);
 }

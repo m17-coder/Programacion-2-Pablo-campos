@@ -64,5 +64,8 @@
             int getcantidadcarreras();
             void buscarEstudiante(Estudiantes est[80]);
             void estadisticas(Estudiantes est[80]);
+            void editarEstudiante(Estudiantes est[80]);
+            void reportePorCarrera(Estudiantes est[80]);
+            void exportarNotas(Estudiantes est[80]);
         };
     #endif //colegio.hpp
