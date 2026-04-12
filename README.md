@@ -10,8 +10,9 @@ carrera con el objetivo de obtener un manejo decente del lenguaje de programacio
 ##                                  ​🕵️​ Distribucion de los temas:
 Cada tema impartido se documentara en una carpeta con el nombre del tema, ejemplo:
 1. Punteros.....
-2. Memoria dinamica.....etc.
+2. Memoria dinamica.....
+3. Modularizacion y POO.....
 
- Dicha carpeta tendra los ejercicios realizados en clase, videos para estudiar usados, libros usados, un porcentaje que reflejara que tan util es aprender sobre el tema y el nivel de complejidad en escala del 1 al 10. Los ultimos los se basaran en mi criterio personal
+ Dicha carpeta tendra los ejercicios realizados en clase,links de videos sobre el tema y la implementacion de ese tema en el proyecto final. Adicionalmente en las carpetas se encontrara un readme con un porcentaje que reflejara que tan util es aprender sobre el tema y el nivel de complejidad en escala del 1 al 10
 
 ###                     ¡"RECUERDA QUE SI PUEDES IMAGINARLO PUEDES PROGRAMARLO"(Progrmacion Ats)! 💻🦾​🔥
