@@ -154,7 +154,7 @@ void Estudiantes::setInscrito(bool estado){
     inscrito=estado;
 }
 double Estudiantes::calcularFinal(Colegio& uru) {
-    double notaFinal = nota1 * uru.getPesoP1() + nota2 * uru.getPesoP2() + nota3 * uru.getPesoP3();
+    notaFinal = nota1 * uru.getPesoP1() + nota2 * uru.getPesoP2() + nota3 * uru.getPesoP3();
     notaFinal = redondear(notaFinal, 2);
     return notaFinal;
 }
