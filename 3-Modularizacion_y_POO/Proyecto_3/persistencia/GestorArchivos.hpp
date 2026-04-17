@@ -12,6 +12,7 @@ public:
     static bool inicializarSistemaArchivos();
     static void crearArchivoBinario(const char* nombreArchivo);
     static Header leerHeader(const char* nombreArchivo);
+    static void crearBackup();
 
     // Guarda un nuevo registro y le asigna el próximo ID disponible
     template <typename T>
