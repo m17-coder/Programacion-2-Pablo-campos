@@ -9,7 +9,7 @@
 using namespace std;
 
 void GestorArchivos::crearBackup() {
-    // Al estar en Fase 3, guardaremos los backups en "datos/backups/"
+    
     system("mkdir datos\\backups 2> nul"); 
     
     time_t t = time(0);

@@ -24,7 +24,6 @@ private:
 public:
     // Constructores
     Producto();
-    // (Puedes agregar más constructores según necesites)
 
     // Getters
     int getId() const;

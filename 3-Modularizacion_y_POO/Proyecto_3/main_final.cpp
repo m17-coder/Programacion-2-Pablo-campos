@@ -3,7 +3,6 @@
 #include "interfaz/Interfaz.hpp"
 #include "Tienda/OPERACIONESTIENDA.HPP"
 
-using namespace std;
 
 int main() {
     if (!GestorArchivos::inicializarSistemaArchivos()) {

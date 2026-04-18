@@ -808,7 +808,7 @@ bool validarExistencia(const char* nombreArchivo, int idBuscar = -1) {
         }
     }
 
-    archivo.close();
+    archivo.close()
     return false; // El ID no existe
 }
 
